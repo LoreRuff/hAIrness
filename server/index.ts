@@ -1,54 +1,3 @@
-import { Hono } from "hono";
-import { serve } from "@hono/node-server";
-import { serveStatic } from "@hono/node-server/serve-static";
-import { existsSync } from "node:fs";
-import { config } from "./config.ts";
-import { db } from "./db.ts";              // side-effect: opens DB + runs migrations
-import { chat } from "./router/chat.ts";
-import { models } from "./router/models.ts";
-
-const app = new Hono();
-
-// --- API ---
-const api = new Hono();
-
-api.get("/health", (c) =>
-  c.json({
-    ok: true,
-    nodeId: config.nodeId,
-    hasKey: Boolean(config.openrouter.apiKey),
-    time: Date.now(),
-  })
-);
-
-api.route("/chat", chat);
-api.route("/models", models);
-
-app.route("/api", api);
-
-// --- Static frontend (production build) ---
-const WEB_DIST = "./web/dist";
-const hasBuild = existsSync(`${WEB_DIST}/index.html`);
-
-if (hasBuild) {
-  app.use("/*", serveStatic({ root: WEB_DIST }));
-  // SPA fallback: any non-api route -> index.html
-  app.get("*", serveStatic({ path: `${WEB_DIST}/index.html` }));
-} else {
-  // No React build yet -> serve a minimal test chat page so you can verify OpenRouter.
-  app.get("/", (c) => c.html(TEST_PAGE));
-}
-
-serve({ fetch: app.fetch, hostname: config.host, port: config.port }, (info) => {
-  console.log(`[harness] listening on http://${config.host}:${info.port}`);
-  console.log(`[harness] node=${config.nodeId} key=${config.openrouter.apiKey ? "set" : "MISSING"}`);
-  if (!hasBuild) console.log(`[harness] no web/dist build -> serving built-in test page at /`);
-});
-
-// ----------------------------------------------------------------------------
-// Minimal built-in test page (only used when web/dist is not built yet).
-// Lets you verify the SSE relay + OpenRouter key without the React app.
-// ----------------------------------------------------------------------------
 const TEST_PAGE = /* html */ `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AI Harness — test</title>
@@ -75,7 +24,7 @@ const TEST_PAGE = /* html */ `<!DOCTYPE html>
     <input id="system" placeholder="custom system instructions (optional)" style="flex:1">
   </div>
   <textarea id="prompt" placeholder="Type a message...">Say hello in one short sentence.</textarea>
-  <div class="row"><button id="send">Send ▸</button> <span id="status" class="muted"></span></div>
+  <div class="row"><button id="send">Send &#9658;</button> <span id="status" class="muted"></span></div>
   <div id="log"></div>
 
 <script>
@@ -110,4 +59,23 @@ $("send").onclick = async () => {
       for (const line of lines) {
         const t = line.trim();
         if (!t.startsWith("data:")) continue;
-        const raw = t.slice(5
+        const raw = t.slice(5).trim();
+        if (!raw) continue;
+        try {
+          const ev = JSON.parse(raw);
+          if (ev.type === "token") log.textContent += ev.text;
+          else if (ev.type === "usage") $("status").textContent =
+            "tokens " + ev.usage.promptTokens + "/" + ev.usage.completionTokens +
+            " · cached " + ev.usage.cachedPct + "% · $" + ev.usage.costUsd.toFixed(5);
+          else if (ev.type === "error") log.textContent += "\\n[error] " + ev.message;
+          else if (ev.type === "done") $("status").textContent += " · done";
+        } catch (_) {}
+      }
+    }
+  } catch (e) {
+    log.textContent = "fetch error: " + e;
+    $("status").textContent = "";
+  }
+};
+</script>
+</body></html>`;
