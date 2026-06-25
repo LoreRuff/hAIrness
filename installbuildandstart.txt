@@ -1,0 +1,3 @@
+npm install
+npm run build             # builds web/ -> web/dist (served statically)
+npm start                 # serves UI + API on http://0.0.0.0:8787

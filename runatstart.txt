@@ -1,0 +1,9 @@
+sudo useradd -r -s /usr/sbin/nologin harness || true
+sudo mkdir -p /opt/harness && sudo cp -r . /opt/harness && cd /opt/harness
+sudo chown -R harness:harness /opt/harness
+sudo -u harness npm install && sudo -u harness npm run build
+sudo cp deploy/harness.service /etc/systemd/system/harness.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now harness
+sudo systemctl status harness          # check it's running
+journalctl -u harness -f               # follow logs
