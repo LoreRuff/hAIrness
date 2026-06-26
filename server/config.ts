@@ -11,7 +11,6 @@ export const config = {
     siteUrl: process.env.OR_SITE_URL ?? "http://localhost:8787",
     appTitle: process.env.OR_APP_TITLE ?? "AI Harness",
   },
-  isProd: process.env.NODE_ENV === "production",
 };
 
 if (!config.openrouter.apiKey) {

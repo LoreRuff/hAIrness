@@ -5,8 +5,7 @@ export const models = new Hono();
 
 models.get("/", async (c) => {
   try {
-    const data = await listModels();
-    return c.json(data);
+    return c.json(await listModels());
   } catch (e: any) {
     return c.json({ error: String(e?.message ?? e) }, 502);
   }
