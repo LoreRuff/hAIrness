@@ -54,3 +54,27 @@ textarea, input, select { background: var(--bg3); color: var(--fg); border: 1px 
 .btn-ghost { background: none; border: none; color: var(--muted); cursor: pointer; font: inherit; font-size: 11px; padding: 2px 8px; }
 .btn-ghost:hover { color: var(--fg); }
 .muted { color: var(--muted); }
+/* ---- attachments ---- */
+.composer { flex-direction: column; }
+.composer.drag { outline: 2px dashed var(--accent); outline-offset: -4px; }
+.composer-row { display: flex; gap: 8px; width: 100%; align-items: flex-end; }
+.btn-attach { font-size: 16px; padding: 8px 4px; }
+.att-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.att-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 12px; }
+.att-thumb { width: 28px; height: 28px; object-fit: cover; border-radius: 4px; }
+.att-preview { max-width: 240px; max-height: 180px; border-radius: 8px; border: 1px solid var(--border); }
+.att-name { max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- skills / memory panels ---- */
+.panel { display: grid; grid-template-columns: 280px 1fr; min-width: 0; overflow: hidden; }
+.panel-list { border-right: 1px solid var(--border); padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.panel-editor { padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; max-width: 860px; }
+.panel-editor h3, .list-head { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 8px 0 2px; }
+.item { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+.item:hover { background: var(--bg3); }
+.item.active { background: var(--bg3); border-color: var(--border); }
+.item input[type="checkbox"], .item input[type="radio"] { width: auto; }
+.item-main { min-width: 0; flex: 1; }
+.item-sub { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row-btns { display: flex; gap: 8px; }
+

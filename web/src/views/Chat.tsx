@@ -3,7 +3,7 @@ import { nanoid } from "nanoid";
 import { useStore } from "../lib/store";
 import { streamChat } from "../lib/sse";
 import { apiGet, apiPut } from "../lib/api";
-import type { Conversation, Usage } from "../types";
+import type { Attachment, Conversation, Usage } from "../types";
 import Message from "../components/Message";
 import Composer from "../components/Composer";
 
@@ -22,7 +22,7 @@ export default function Chat() {
     const existing = conversations.find((c) => c.id === id);
     const conv: Conversation = {
       id,
-      title: existing?.title || (messages[0]?.content.slice(0, 60) ?? "New chat"),
+      title: existing?.title || (messages[0]?.content.slice(0, 60) || "New chat"),
       messages,
       usageTotal: [...(existing?.usageTotal ?? []), ...(usage ? [usage] : [])],
       updatedAt: Date.now(),
@@ -30,12 +30,30 @@ export default function Chat() {
     };
     await apiPut(`/api/conversations/${id}`, conv).catch(() => {});
     if (!currentId) s.setCurrentId(id);
-    const { items } = await apiGet<{ items: Conversation[] }>("/api/conversations").catch(() => ({ items: conversations }));
+    const { items } = await apiGet<{ items: Conversation[] }>("/api/conversations")
+      .catch(() => ({ items: conversations }));
     s.setConversations(items);
   }
 
-  async function send(text: string) {
-    const userMsg = { id: nanoid(10), role: "user" as const, content: text, createdAt: Date.now() };
+  function buildContext() {
+    const st = useStore.getState();
+    const soul = st.memoryFiles.find((f) => f.id === st.activeSoulId)?.content ?? null;
+    const facts = st.activeFactIds
+      .map((id) => st.memoryFiles.find((f) => f.id === id))
+      .filter(Boolean)
+      .map((f) => `## ${f!.name}\n${f!.content}`);
+    const skillInstructions = st.activeSkillIds
+      .map((id) => st.skills.find((x) => x.id === id))
+      .filter(Boolean)
+      .map((sk) => `## ${sk!.name}\n${sk!.instructions}`);
+    return { soul, facts, skillInstructions };
+  }
+
+  async function send(text: string, attachments: Attachment[]) {
+    const userMsg = {
+      id: nanoid(10), role: "user" as const, content: text, createdAt: Date.now(),
+      ...(attachments.length ? { attachments } : {}),
+    };
     const asstMsg = { id: nanoid(10), role: "assistant" as const, content: "", createdAt: Date.now() };
     s.setMessages([...s.messages, userMsg, asstMsg]);
     s.setStreaming(true);
@@ -53,6 +71,7 @@ export default function Chat() {
           temperature: s.temperature,
           stream: true,
           messages: [...useStore.getState().messages.slice(0, -1)],
+          ...buildContext(),
         },
         (ev) => {
           if (ev.type === "token") s.appendToLast(ev.text);
@@ -70,9 +89,7 @@ export default function Chat() {
     }
   }
 
-  function stop() {
-    abortRef.current?.abort();
-  }
+  function stop() { abortRef.current?.abort(); }
 
   const last = s.messages[s.messages.length - 1];
 
