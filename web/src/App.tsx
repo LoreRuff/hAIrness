@@ -30,21 +30,32 @@ export default function App() {
     s.setCurrentId(c.id);
     s.setMessages(c.messages ?? []);
     s.setView("chat");
+    s.closePanels();
   }
 
   function newChat() {
     s.setCurrentId(null);
     s.setMessages([]);
     s.setView("chat");
+    s.closePanels();
   }
 
+  const layoutClass =
+    "layout" +
+    (s.showSidebar ? " show-sidebar" : "") +
+    (s.showInspector ? " show-inspector" : "");
+
   return (
-    <div className="layout">
+    <div className={layoutClass}>
+      <button id="btn-sidebar" className="topbar-btn" onClick={s.toggleSidebar}>☰</button>
+      <button id="btn-inspector" className="topbar-btn" onClick={s.toggleInspector}>⚙</button>
+      {(s.showSidebar || s.showInspector) && <div className="backdrop" onClick={s.closePanels} />}
+
       <nav className="rail">
         {RAIL.map((r) => (
           <button key={r.id} title={r.label}
             className={s.view === r.id ? "rail-btn active" : "rail-btn"}
-            onClick={() => s.setView(r.id)}>{r.icon}</button>
+            onClick={() => { s.setView(r.id); s.closePanels(); }}>{r.icon}</button>
         ))}
       </nav>
 

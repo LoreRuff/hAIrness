@@ -24,6 +24,15 @@ interface HarnessState {
   temperature: number;
   setTemperature: (t: number) => void;
 
+  enterToSend: boolean;
+  toggleEnterToSend: () => void;
+
+  showSidebar: boolean;
+  showInspector: boolean;
+  toggleSidebar: () => void;
+  toggleInspector: () => void;
+  closePanels: () => void;
+
   conversations: Conversation[];
   setConversations: (c: Conversation[]) => void;
   currentId: string | null;
@@ -60,12 +69,22 @@ export const useStore = create<HarnessState>((set) => ({
 
   model: localStorage.getItem("harness_model") || "openai/gpt-4o-mini",
   setModel: (model) => { localStorage.setItem("harness_model", model); set({ model }); },
-  systemMode: "append",
-  setSystemMode: (systemMode) => set({ systemMode }),
-  system: "",
-  setSystem: (system) => set({ system }),
-  temperature: 0.7,
-  setTemperature: (temperature) => set({ temperature }),
+  systemMode: lsGet<SystemMode>("harness_mode", "append"),
+  setSystemMode: (systemMode) => { lsSet("harness_mode", systemMode); set({ systemMode }); },
+  system: localStorage.getItem("harness_system") ?? "",
+  setSystem: (system) => { localStorage.setItem("harness_system", system); set({ system }); },
+  temperature: lsGet<number>("harness_temp", 0.7),
+  setTemperature: (temperature) => { lsSet("harness_temp", temperature); set({ temperature }); },
+
+  enterToSend: lsGet<boolean>("harness_enter_send", true),
+  toggleEnterToSend: () =>
+    set((s) => { lsSet("harness_enter_send", !s.enterToSend); return { enterToSend: !s.enterToSend }; }),
+
+  showSidebar: false,
+  showInspector: false,
+  toggleSidebar: () => set((s) => ({ showSidebar: !s.showSidebar, showInspector: false })),
+  toggleInspector: () => set((s) => ({ showInspector: !s.showInspector, showSidebar: false })),
+  closePanels: () => set({ showSidebar: false, showInspector: false }),
 
   conversations: [],
   setConversations: (conversations) => set({ conversations }),

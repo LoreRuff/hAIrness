@@ -78,3 +78,38 @@ textarea, input, select { background: var(--bg3); color: var(--fg); border: 1px 
 .item-sub { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row-btns { display: flex; gap: 8px; }
 
+/* ---- context lists (inspector) ---- */
+.ctx-list { display: flex; flex-direction: column; gap: 4px; }
+.ctx-item { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
+.ctx-item:hover { background: var(--bg3); }
+.ctx-item input { width: auto; margin: 0; }
+
+/* ---- composer buttons ---- */
+.composer-btns { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+
+/* ---- mobile toggles ---- */
+.topbar-btn { display: none; position: fixed; top: 8px; z-index: 50; background: var(--bg3); border: 1px solid var(--border); color: var(--fg); border-radius: 8px; padding: 6px 12px; font: inherit; cursor: pointer; }
+#btn-sidebar { left: 8px; }
+#btn-inspector { right: 8px; }
+.backdrop { display: none; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .topbar-btn { display: block; }
+  .backdrop { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 35; }
+
+  .rail { position: fixed; bottom: 0; left: 0; right: 0; flex-direction: row; justify-content: space-around; border-right: none; border-top: 1px solid var(--border); z-index: 30; padding: 4px; }
+  .chat, .panel { padding-bottom: 56px; }
+  .chat-scroll { padding-top: 48px; }
+
+  .sidebar { position: fixed; top: 0; left: 0; bottom: 56px; width: 82vw; max-width: 320px; z-index: 40; transform: translateX(-105%); transition: transform .18s ease; }
+  .layout.show-sidebar .sidebar { transform: none; }
+
+  .inspector { position: fixed; top: 0; right: 0; bottom: 56px; width: 88vw; max-width: 340px; z-index: 40; transform: translateX(105%); transition: transform .18s ease; }
+  .layout.show-inspector .inspector { transform: none; }
+
+  .panel { grid-template-columns: 1fr; }
+  .panel-list { border-right: none; border-bottom: 1px solid var(--border); max-height: 40vh; }
+}
+
+

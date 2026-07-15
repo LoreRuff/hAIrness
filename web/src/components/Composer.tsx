@@ -11,6 +11,8 @@ export default function Composer({ onSend, onStop }: {
   const [drag, setDrag] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const streaming = useStore((s) => s.streaming);
+  const enterToSend = useStore((s) => s.enterToSend);
+  const toggleEnterToSend = useStore((s) => s.toggleEnterToSend);
 
   async function addFiles(files: FileList | File[]) {
     for (const f of Array.from(files)) {
@@ -26,6 +28,13 @@ export default function Composer({ onSend, onStop }: {
     setText("");
     setAtts([]);
     onSend(t, atts);
+  }
+
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key !== "Enter") return;
+    const sendCombo = enterToSend ? !e.shiftKey : e.shiftKey;
+    if (sendCombo) { e.preventDefault(); submit(); }
+    // otherwise: default behaviour = newline
   }
 
   return (
@@ -57,14 +66,23 @@ export default function Composer({ onSend, onStop }: {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
+          onKeyDown={onKeyDown}
           onPaste={(e) => { if (e.clipboardData.files.length) { e.preventDefault(); addFiles(e.clipboardData.files); } }}
-          placeholder="Message… (Enter to send · Shift+Enter newline · drop/paste files)"
+          placeholder={enterToSend
+            ? "Message… (Enter = send · Shift+Enter = newline)"
+            : "Message… (Shift+Enter = send · Enter = newline)"}
           rows={3}
         />
-        {streaming
-          ? <button className="btn btn-stop" onClick={onStop}>■ stop</button>
-          : <button className="btn" onClick={submit}>send ▶</button>}
+        <div className="composer-btns">
+          <button
+            className="btn-ghost"
+            title="Toggle send shortcut"
+            onClick={toggleEnterToSend}
+          >{enterToSend ? "↵ send" : "⇧↵ send"}</button>
+          {streaming
+            ? <button className="btn btn-stop" onClick={onStop}>■ stop</button>
+            : <button className="btn" onClick={submit}>send ▶</button>}
+        </div>
       </div>
     </div>
   );

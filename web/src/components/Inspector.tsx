@@ -7,9 +7,8 @@ export default function Inspector() {
   const [tok, setTok] = useState(getToken());
   const lastUsage = Object.values(s.usages).at(-1);
 
-  const activeSkills = s.skills.filter((x) => s.activeSkillIds.includes(x.id));
-  const soul = s.memoryFiles.find((f) => f.id === s.activeSoulId);
-  const facts = s.memoryFiles.filter((f) => s.activeFactIds.includes(f.id));
+  const souls = s.memoryFiles.filter((f) => f.kind === "soul");
+  const facts = s.memoryFiles.filter((f) => f.kind === "fact");
 
   return (
     <aside className="inspector">
@@ -43,11 +42,40 @@ export default function Inspector() {
       <input type="range" min={0} max={2} step={0.1} value={s.temperature}
         onChange={(e) => s.setTemperature(Number(e.target.value))} />
 
-      <h3>Active context</h3>
-      <div className="usage-box">
-        <div>soul: {soul ? soul.name : <span className="muted">none</span>}</div>
-        <div>facts: {facts.length ? facts.map((f) => f.name).join(", ") : <span className="muted">none</span>}</div>
-        <div>skills: {activeSkills.length ? activeSkills.map((x) => x.name).join(", ") : <span className="muted">none</span>}</div>
+      <h3>Soul</h3>
+      <div className="ctx-list">
+        <label className="ctx-item">
+          <input type="radio" name="soul-pick" checked={!s.activeSoulId} onChange={() => s.setActiveSoul(null)} />
+          <span className="muted">none</span>
+        </label>
+        {souls.map((f) => (
+          <label key={f.id} className="ctx-item">
+            <input type="radio" name="soul-pick" checked={s.activeSoulId === f.id} onChange={() => s.setActiveSoul(f.id)} />
+            {f.name}
+          </label>
+        ))}
+      </div>
+
+      <h3>Facts</h3>
+      <div className="ctx-list">
+        {facts.length === 0 && <span className="muted">none — create in Memory</span>}
+        {facts.map((f) => (
+          <label key={f.id} className="ctx-item">
+            <input type="checkbox" checked={s.activeFactIds.includes(f.id)} onChange={() => s.toggleFact(f.id)} />
+            {f.name}
+          </label>
+        ))}
+      </div>
+
+      <h3>Skills</h3>
+      <div className="ctx-list">
+        {s.skills.length === 0 && <span className="muted">none — create in Skills</span>}
+        {s.skills.map((sk) => (
+          <label key={sk.id} className="ctx-item">
+            <input type="checkbox" checked={s.activeSkillIds.includes(sk.id)} onChange={() => s.toggleSkill(sk.id)} />
+            {sk.name}
+          </label>
+        ))}
       </div>
 
       <h3>Last usage</h3>
