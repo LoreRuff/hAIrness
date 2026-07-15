@@ -130,3 +130,14 @@ textarea, input, select { background: var(--bg3); color: var(--fg); border: 1px 
 .msg-del { opacity: 0; transition: opacity .15s; }
 .msg:hover .msg-del { opacity: 1; }
 
+/* ---- node run log v2 ---- */
+.run-log2 { display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; padding: 4px 0; }
+.rl-start { color: var(--accent); font-size: 12px; }
+.rl-usage { color: var(--muted); font-size: 11px; padding-left: 12px; }
+.rl-error { color: #f85149; background: rgba(248, 81, 73, .08); border: 1px solid rgba(248, 81, 73, .4); border-radius: 8px; padding: 10px 12px; white-space: pre-wrap; }
+.rl-done { color: var(--muted); font-size: 11px; text-align: center; }
+.rl-card { border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); overflow: hidden; }
+.rl-card-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: var(--bg3); border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+.rl-card-body { margin: 0; padding: 12px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; overflow-x: auto; }
+.rl-final { border-color: var(--accent); }
+.rl-final .rl-card-head { color: var(--accent); font-weight: 600; }

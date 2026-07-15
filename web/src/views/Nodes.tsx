@@ -5,6 +5,13 @@ import { streamEvents } from "../lib/sse";
 import { nanoid } from "nanoid";
 import type { Graph, JuryNode, PipelineNode, SingleNode, SystemMode } from "../types";
 
+interface LogEntry {
+  kind: "start" | "output" | "final" | "usage" | "error" | "done";
+  title?: string;
+  body?: string;
+}
+
+
 type Kind = "pipeline" | "jury";
 interface StepDraft { name: string; model: string; system: string; mode: SystemMode }
 
@@ -21,7 +28,7 @@ export default function Nodes() {
   const [criteria, setCriteria] = useState("accuracy, clarity, completeness");
   const [jurySystem, setJurySystem] = useState("");
   const [input, setInput] = useState("");
-  const [log, setLog] = useState<string[]>([]);
+const [log, setLog] = useState<LogEntry[]>([]);
   const [running, setRunning] = useState(false);
 
   function openNew() {
@@ -105,26 +112,35 @@ export default function Nodes() {
     await refresh();
   }
 
-  async function run() {
+    async function run() {
     if (!sel || !input.trim() || running) return;
     const g = s.graphs.find((x) => x.id === sel);
+    const rootId = g?.nodes[0]?.id;
     const nodeName = (id: string) => g?.nodes.find((n) => n.id === id)?.name ?? id;
     setLog([]); setRunning(true);
-    const add = (line: string) => setLog((l) => [...l, line]);
+    const add = (e: LogEntry) => setLog((l) => [...l, e]);
     try {
       await streamEvents("/api/graph/run", { graphId: sel, input }, (ev) => {
-        if (ev.type === "node_start") add(`▶ ${nodeName(ev.nodeId)}…`);
-        else if (ev.type === "node_done") add(`✓ ${nodeName(ev.nodeId)}\n${ev.output}\n`);
-        else if (ev.type === "usage") add(`  $ ${ev.usage.model} · ${ev.usage.promptTokens}→${ev.usage.completionTokens} tok · $${ev.usage.costUsd.toFixed(5)}`);
-        else if (ev.type === "error") add(`✗ ${ev.message}`);
-        else if (ev.type === "done") add(`— done —`);
+        if (ev.type === "node_start") add({ kind: "start", title: nodeName(ev.nodeId) });
+        else if (ev.type === "node_done") add({
+          kind: ev.nodeId === rootId ? "final" : "output",
+          title: nodeName(ev.nodeId),
+          body: ev.output,
+        });
+        else if (ev.type === "usage") add({
+          kind: "usage",
+          body: `${ev.usage.model} · ${ev.usage.promptTokens}→${ev.usage.completionTokens} tok · $${ev.usage.costUsd.toFixed(5)}`,
+        });
+        else if (ev.type === "error") add({ kind: "error", body: ev.message });
+        else if (ev.type === "done") add({ kind: "done" });
       });
     } catch (e: any) {
-      add(`✗ ${String(e?.message ?? e)}`);
+      add({ kind: "error", body: String(e?.message ?? e) });
     } finally {
       setRunning(false);
     }
   }
+
 
   return (
     <main className="panel">
@@ -208,7 +224,25 @@ export default function Nodes() {
             <button className="btn" onClick={run} disabled={running}>
               {running ? "running…" : "run ▶"}
             </button>
-            {log.length > 0 && <pre className="run-log">{log.join("\n")}</pre>}
+            {log.length > 0 && (
+              <div className="run-log2">
+                {log.map((e, i) => {
+                  if (e.kind === "start") return <div key={i} className="rl-start">▶ {e.title}…</div>;
+                  if (e.kind === "usage") return <div key={i} className="rl-usage">{e.body}</div>;
+                  if (e.kind === "error") return <div key={i} className="rl-error">✗ {e.body}</div>;
+                  if (e.kind === "done") return <div key={i} className="rl-done">— done —</div>;
+                  return (
+                    <div key={i} className={e.kind === "final" ? "rl-card rl-final" : "rl-card"}>
+                      <div className="rl-card-head">
+                        {e.kind === "final" ? "★ " : "✓ "}{e.title}
+                        <button className="btn-ghost" onClick={() => navigator.clipboard.writeText(e.body ?? "")}>copy</button>
+                      </div>
+                      <pre className="rl-card-body">{e.body}</pre>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
       </div>
