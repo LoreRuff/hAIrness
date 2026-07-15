@@ -17,19 +17,15 @@ export default function Chat() {
   }, [s.messages]);
 
   async function persist(usage?: Usage) {
-    const { messages, currentId, conversations } = useStore.getState();
+    const { messages, currentId, conversations, currentProjectId } = useStore.getState();
     const id = currentId ?? nanoid(12);
     const existing = conversations.find((c) => c.id === id);
-        const conv: Conversation = {
+    const conv: Conversation = {
       id,
-      projectId: useStore.getState().currentProjectId ?? undefined,
+      projectId: currentProjectId ?? undefined,
       title: existing?.title || (messages[0]?.content.slice(0, 60) || "New chat"),
       messages,
       usageTotal: [...(existing?.usageTotal ?? []), ...(usage ? [usage] : [])],
-      updatedAt: Date.now(),
-      nodeOrigin: "",
-    };
-
       updatedAt: Date.now(),
       nodeOrigin: "",
     };
