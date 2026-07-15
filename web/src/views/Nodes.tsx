@@ -5,17 +5,12 @@ import { streamEvents } from "../lib/sse";
 import { nanoid } from "nanoid";
 import type { Graph, JuryNode, PipelineNode, SingleNode, SystemMode } from "../types";
 
-interface LogEntry {
-  kind: "start" | "output" | "final" | "usage" | "error" | "done";
-  title?: string;
-  body?: string;
-}
-
-
 type Kind = "pipeline" | "jury";
-interface StepDraft { name: string; model: string; system: string; mode: SystemMode }
+type StepKind = "model" | "jury";
+interface StepDraft { kind: StepKind; name: string; model: string; system: string; mode: SystemMode; juryGraphId: string }
+interface LogEntry { kind: "start" | "output" | "final" | "usage" | "error" | "done"; title?: string; body?: string }
 
-const STEP: StepDraft = { name: "", model: "", system: "", mode: "append" };
+const STEP: StepDraft = { kind: "model", name: "", model: "", system: "", mode: "append", juryGraphId: "" };
 
 export default function Nodes() {
   const s = useStore();
@@ -27,14 +22,22 @@ export default function Nodes() {
   const [judge, setJudge] = useState("");
   const [criteria, setCriteria] = useState("accuracy, clarity, completeness");
   const [jurySystem, setJurySystem] = useState("");
+  const [winnerOnly, setWinnerOnly] = useState(false);
   const [input, setInput] = useState("");
-const [log, setLog] = useState<LogEntry[]>([]);
+  const [log, setLog] = useState<LogEntry[]>([]);
   const [running, setRunning] = useState(false);
+
+  const juryGraphs = s.graphs.filter((g) => g.nodes[0]?.type === "jury" && g.id !== sel);
+
+  function setStep(i: number, patch: Partial<StepDraft>) {
+    setSteps(steps.map((x, xi) => (xi === i ? { ...x, ...patch } : x)));
+  }
 
   function openNew() {
     setSel(null); setKind("pipeline"); setName("");
     setSteps([{ ...STEP }]); setPanel(["", ""]); setJudge("");
-    setCriteria("accuracy, clarity, completeness"); setJurySystem(""); setLog([]);
+    setCriteria("accuracy, clarity, completeness"); setJurySystem("");
+    setWinnerOnly(false); setLog([]);
   }
 
   function open(g: Graph) {
@@ -43,11 +46,13 @@ const [log, setLog] = useState<LogEntry[]>([]);
     if (root?.type === "pipeline") {
       setKind("pipeline");
       const children = (root as PipelineNode).steps
-        .map((id) => g.nodes.find((n) => n.id === id) as SingleNode | undefined)
-        .filter(Boolean) as SingleNode[];
-      setSteps(children.map((c) => ({
-        name: c.name, model: c.model, system: c.system ?? "", mode: c.systemMode,
-      })));
+        .map((id) => g.nodes.find((n) => n.id === id))
+        .filter(Boolean);
+      setSteps(children.map((c: any) =>
+        c.type === "jury"
+          ? { kind: "jury", name: c.name, model: "", system: "", mode: "append", juryGraphId: c.sourceGraphId ?? "" }
+          : { kind: "model", name: c.name, model: c.model, system: c.system ?? "", mode: c.systemMode, juryGraphId: "" }
+      ));
     } else if (root?.type === "jury") {
       const j = root as JuryNode;
       setKind("jury");
@@ -55,6 +60,7 @@ const [log, setLog] = useState<LogEntry[]>([]);
       setJudge(j.judge);
       setCriteria(j.criteria.join(", "));
       setJurySystem(j.system ?? "");
+      setWinnerOnly(Boolean((j as any).winnerOnly));
     }
   }
 
@@ -74,14 +80,33 @@ const [log, setLog] = useState<LogEntry[]>([]);
     let nodes: Graph["nodes"];
 
     if (kind === "pipeline") {
-      const valid = steps.filter((st) => st.model.trim());
-      if (!valid.length) { alert("pipeline needs at least one step with a model"); return; }
-      const children: SingleNode[] = valid.map((st, i) => ({
-        ...emptyNode, id: `${gid}-s${i}`, type: "single",
-        name: st.name.trim() || `step ${i + 1}`,
-        model: st.model.trim(), systemMode: st.mode,
-        system: st.system.trim() || undefined,
-      })) as SingleNode[];
+      const valid = steps.filter((st) =>
+        st.kind === "model" ? st.model.trim() : st.juryGraphId
+      );
+      if (!valid.length) { alert("pipeline needs at least one valid step"); return; }
+
+      const children: Graph["nodes"] = [];
+      for (let i = 0; i < valid.length; i++) {
+        const st = valid[i];
+        const id = `${gid}-s${i}`;
+        if (st.kind === "model") {
+          children.push({
+            ...emptyNode, id, type: "single",
+            name: st.name.trim() || `step ${i + 1}`,
+            model: st.model.trim(), systemMode: st.mode,
+            system: st.system.trim() || undefined,
+          } as SingleNode);
+        } else {
+          const src = s.graphs.find((g) => g.id === st.juryGraphId);
+          const srcRoot = src?.nodes[0];
+          if (!src || srcRoot?.type !== "jury") { alert(`step ${i + 1}: jury graph not found`); return; }
+          children.push({
+            ...(srcRoot as JuryNode), id,
+            name: st.name.trim() || src.name,
+            sourceGraphId: src.id,
+          } as any);
+        }
+      }
       const root: PipelineNode = {
         ...emptyNode, id: `${gid}-root`, type: "pipeline", name,
         systemMode: "append", steps: children.map((c) => c.id),
@@ -90,12 +115,13 @@ const [log, setLog] = useState<LogEntry[]>([]);
     } else {
       const models = panel.map((p) => p.trim()).filter(Boolean);
       if (models.length < 2 || !judge.trim()) { alert("jury needs ≥2 panel models and a judge"); return; }
-      const root: JuryNode = {
+      const root = {
         ...emptyNode, id: `${gid}-root`, type: "jury", name,
         systemMode: "append", system: jurySystem.trim() || undefined,
         panel: models, judge: judge.trim(),
         criteria: criteria.split(",").map((x) => x.trim()).filter(Boolean),
-      } as JuryNode;
+        winnerOnly,
+      } as unknown as JuryNode;
       nodes = [root];
     }
 
@@ -112,7 +138,7 @@ const [log, setLog] = useState<LogEntry[]>([]);
     await refresh();
   }
 
-    async function run() {
+  async function run() {
     if (!sel || !input.trim() || running) return;
     const g = s.graphs.find((x) => x.id === sel);
     const rootId = g?.nodes[0]?.id;
@@ -141,8 +167,7 @@ const [log, setLog] = useState<LogEntry[]>([]);
     }
   }
 
-
-    return (
+  return (
     <main className="panel">
       <div className="panel-list">
         <button className="btn btn-block" onClick={openNew}>+ new graph</button>
@@ -174,19 +199,37 @@ const [log, setLog] = useState<LogEntry[]>([]);
                     <span className="muted">step {i + 1}</span>
                     <button className="btn-ghost" onClick={() => setSteps(steps.filter((_, x) => x !== i))}>✕</button>
                   </div>
-                  <input placeholder="step name" value={st.name}
-                    onChange={(e) => setSteps(steps.map((x, xi) => xi === i ? { ...x, name: e.target.value } : x))} />
-                  <input list="models" placeholder="model" value={st.model} spellCheck={false}
-                    onChange={(e) => setSteps(steps.map((x, xi) => xi === i ? { ...x, model: e.target.value } : x))} />
                   <div className="mode-toggle">
-                    {(["append", "replace"] as const).map((m) => (
-                      <button key={m} className={st.mode === m ? "mode active" : "mode"}
-                        onClick={() => setSteps(steps.map((x, xi) => xi === i ? { ...x, mode: m } : x))}>{m}</button>
+                    {(["model", "jury"] as const).map((k) => (
+                      <button key={k} className={st.kind === k ? "mode active" : "mode"}
+                        onClick={() => setStep(i, { kind: k })}>{k === "model" ? "model" : "⚖️ jury"}</button>
                     ))}
                   </div>
-                  <textarea rows={3} placeholder="system instructions for this step"
-                    value={st.system}
-                    onChange={(e) => setSteps(steps.map((x, xi) => xi === i ? { ...x, system: e.target.value } : x))} />
+                  <input placeholder="step name (optional)" value={st.name}
+                    onChange={(e) => setStep(i, { name: e.target.value })} />
+                  {st.kind === "model" ? (
+                    <>
+                      <input list="models" placeholder="model" value={st.model} spellCheck={false}
+                        onChange={(e) => setStep(i, { model: e.target.value })} />
+                      <div className="mode-toggle">
+                        {(["append", "replace"] as const).map((m) => (
+                          <button key={m} className={st.mode === m ? "mode active" : "mode"}
+                            onClick={() => setStep(i, { mode: m })}>{m}</button>
+                        ))}
+                      </div>
+                      <textarea rows={3} placeholder="system instructions for this step"
+                        value={st.system} onChange={(e) => setStep(i, { system: e.target.value })} />
+                    </>
+                  ) : (
+                    <>
+                      <select value={st.juryGraphId} onChange={(e) => setStep(i, { juryGraphId: e.target.value })}>
+                        <option value="">— pick a saved jury —</option>
+                        {juryGraphs.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                      </select>
+                      {juryGraphs.length === 0 && <div className="muted">no jury graphs saved yet — create one first</div>}
+                      <div className="muted">snapshot: the jury config is copied into this pipeline at save time</div>
+                    </>
+                  )}
                 </div>
               ))}
               <button className="btn-ghost" onClick={() => setSteps([...steps, { ...STEP }])}>+ add step</button>
@@ -209,6 +252,10 @@ const [log, setLog] = useState<LogEntry[]>([]);
               <input value={criteria} onChange={(e) => setCriteria(e.target.value)} />
               <h3>System (optional, for panel)</h3>
               <textarea rows={3} value={jurySystem} onChange={(e) => setJurySystem(e.target.value)} />
+              <label className="ctx-item">
+                <input type="checkbox" checked={winnerOnly} onChange={(e) => setWinnerOnly(e.target.checked)} />
+                output winner answer only (clean — best when used inside a pipeline)
+              </label>
             </>
           )}
 
@@ -253,5 +300,4 @@ const [log, setLog] = useState<LogEntry[]>([]);
       </div>
     </main>
   );
-
 }

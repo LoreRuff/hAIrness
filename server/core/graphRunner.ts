@@ -70,10 +70,12 @@ async function runPipeline(graph: Graph, n: PipelineNode, input: string, emit: E
 
 async function runJury(n: JuryNode, input: string, emit: Emit): Promise<string> {
   const answers = await Promise.all(
-    n.panel.map(async (model) => ({
-      model,
-      text: await complete(model, n.system, n.systemMode, input, emit),
-    }))
+    n.panel.map(async (model) => {
+      await emit({ type: "node_start", nodeId: model });
+      const text = await complete(model, n.system, n.systemMode, input, emit);
+      await emit({ type: "node_done", nodeId: model, output: text });
+      return { model, text };
+    })
   );
 
   const judgeSystem =
@@ -85,7 +87,10 @@ async function runJury(n: JuryNode, input: string, emit: Emit): Promise<string> 
     `Question:\n${input}\n\n` +
     answers.map((a, i) => `--- Candidate ${i + 1} (${a.model}) ---\n${a.text}`).join("\n\n");
 
+  const judgeId = `judge (${n.judge})`;
+  await emit({ type: "node_start", nodeId: judgeId });
   const verdictRaw = await complete(n.judge, judgeSystem, "replace", judgeInput, emit);
+  await emit({ type: "node_done", nodeId: judgeId, output: verdictRaw });
 
   let result: JuryResult | null = null;
   const m = verdictRaw.match(/\{[\s\S]*\}/);
@@ -94,6 +99,9 @@ async function runJury(n: JuryNode, input: string, emit: Emit): Promise<string> 
   const winnerText = result
     ? (answers.find((a) => a.model === result!.winner)?.text ?? answers[0].text)
     : answers[0].text;
+
+  if ((n as any).winnerOnly) return winnerText;
+
   const verdict = result ? JSON.stringify(result, null, 2) : verdictRaw;
   return `## Winner: ${result?.winner ?? "(unparsed verdict)"}\n\n${winnerText}\n\n## Verdict\n\`\`\`json\n${verdict}\n\`\`\``;
 }
