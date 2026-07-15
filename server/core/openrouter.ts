@@ -34,6 +34,7 @@ export async function listModels(): Promise<unknown> {
   if (!r.ok) throw new Error(`models ${r.status}`);
   return r.json();
 }
+
 function extractText(msg: any): string {
   const c = msg?.content;
   if (typeof c === "string" && c.trim()) return c;
@@ -69,14 +70,7 @@ export async function openrouterComplete(p: {
   const choice = j.choices?.[0];
   let text = extractText(choice?.message);
   if (!text.trim()) {
-    // never return an invisible result — surface the raw payload for debugging
     text = `[empty output from ${p.model}]\nfinish_reason: ${choice?.finish_reason ?? "?"}\nraw message: ${JSON.stringify(choice?.message ?? j).slice(0, 800)}`;
   }
   return { text, usageRaw: j.usage };
 }
-  });
-  if (!r.ok) throw new Error(`OpenRouter ${r.status}: ${(await r.text().catch(() => "")).slice(0, 200)}`);
-  const j: any = await r.json();
-  return { text: j.choices?.[0]?.message?.content ?? "", usageRaw: j.usage };
-}
-
