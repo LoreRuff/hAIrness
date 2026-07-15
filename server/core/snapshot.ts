@@ -1,16 +1,16 @@
-import { mkdirSync, readdirSync, readFileSync, statSync, unlinkSync } from "node:fs";
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { db } from "../db.ts";
 import { config } from "../config.ts";
 
 export interface SnapshotInfo { name: string; size: number; at: number }
 
-export function listSnapshots(): SnapshotInfo[] {
+function listDir(dir: string): SnapshotInfo[] {
   try {
-    return readdirSync(config.snapshots.dir)
-      .filter((f) => f.endsWith(".db"))
+    return readdirSync(dir)
+      .filter((f) => f.startsWith("harness-") && f.endsWith(".db"))
       .map((name) => {
-        const st = statSync(join(config.snapshots.dir, name));
+        const st = statSync(join(dir, name));
         return { name, size: st.size, at: st.mtimeMs };
       })
       .sort((a, b) => b.at - a.at);
@@ -19,15 +19,17 @@ export function listSnapshots(): SnapshotInfo[] {
   }
 }
 
-function prune(): void {
-  const snaps = listSnapshots();
-  for (const s of snaps.slice(config.snapshots.keep)) {
-    try { unlinkSync(join(config.snapshots.dir, s.name)); } catch { /* ignore */ }
+export function listSnapshots(): SnapshotInfo[] {
+  return listDir(config.snapshots.dir);
+}
+
+function prune(dir: string): void {
+  for (const s of listDir(dir).slice(config.snapshots.keep)) {
+    try { unlinkSync(join(dir, s.name)); } catch { /* ignore */ }
   }
 }
 
 async function uploadB2(path: string, name: string): Promise<void> {
-  // dynamic import: @aws-sdk/client-s3 is only needed if B2 is configured
   const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
   const s3 = new S3Client({
     endpoint: config.b2.endpoint,
@@ -43,18 +45,33 @@ async function uploadB2(path: string, name: string): Promise<void> {
   }));
 }
 
-export async function makeSnapshot(): Promise<{ file: string; uploaded: boolean }> {
+export async function makeSnapshot(): Promise<{ file: string; uploaded: boolean; mirrored: boolean }> {
   mkdirSync(config.snapshots.dir, { recursive: true });
   const name = `harness-${new Date().toISOString().replace(/[:.]/g, "-")}.db`;
   const path = join(config.snapshots.dir, name);
   await db.backup(path);          // consistent hot snapshot (WAL-safe)
-  prune();
+  prune(config.snapshots.dir);
+
+  // mirror to an external dir (survives repo redeploys)
+  let mirrored = false;
+  if (config.snapshots.mirrorDir) {
+    try {
+      mkdirSync(config.snapshots.mirrorDir, { recursive: true });
+      copyFileSync(path, join(config.snapshots.mirrorDir, name));
+      copyFileSync(path, join(config.snapshots.mirrorDir, "harness-latest.db"));
+      prune(config.snapshots.mirrorDir);
+      mirrored = true;
+    } catch (e: any) {
+      console.error("[snapshot] mirror failed:", e?.message ?? e);
+    }
+  }
+
   let uploaded = false;
   if (config.b2.enabled) {
     await uploadB2(path, name);
     uploaded = true;
   }
-  return { file: name, uploaded };
+  return { file: name, uploaded, mirrored };
 }
 
 export function startSnapshotScheduler(): void {
@@ -64,5 +81,9 @@ export function startSnapshotScheduler(): void {
     makeSnapshot().catch((e) => console.error("[snapshot]", e?.message ?? e));
   }, min * 60_000);
   t.unref();
-  console.log(`[harness] snapshot scheduler: every ${min} min (keep ${config.snapshots.keep}, B2: ${config.b2.enabled ? "on" : "off"})`);
+  console.log(
+    `[harness] snapshot scheduler: every ${min} min (keep ${config.snapshots.keep}` +
+    `${config.snapshots.mirrorDir ? `, mirror: ${config.snapshots.mirrorDir}` : ""}` +
+    `, B2: ${config.b2.enabled ? "on" : "off"})`
+  );
 }

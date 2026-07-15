@@ -13,11 +13,13 @@ export const config = {
     siteUrl: process.env.OR_SITE_URL ?? "http://localhost:8787",
     appTitle: process.env.OR_APP_TITLE ?? "AI Harness",
   },
-  snapshots: {
+    snapshots: {
     intervalMin: Number(process.env.SNAPSHOT_INTERVAL_MIN ?? 0), // 0 = disabled
     keep: Number(process.env.SNAPSHOT_KEEP ?? 20),
     dir: process.env.SNAPSHOT_DIR ?? "./data/snapshots",
+    mirrorDir: (process.env.SNAPSHOT_MIRROR_DIR ?? "").trim(),   // "" = disabled
   },
+
   b2: {
     enabled: Boolean(process.env.B2_KEY_ID && process.env.B2_APP_KEY && process.env.B2_BUCKET && process.env.B2_ENDPOINT),
     keyId: process.env.B2_KEY_ID ?? "",
