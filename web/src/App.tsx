@@ -1,10 +1,12 @@
 import { useEffect } from "react";
 import { useStore, type ViewId } from "./lib/store";
 import { apiGet } from "./lib/api";
-import type { Conversation, MemoryFile, ModelInfo, Skill } from "./types";
+import type { Conversation, MemoryFile, ModelInfo, Project, Skill } from "./types";
 import Chat from "./views/Chat";
 import Skills from "./views/Skills";
 import Memory from "./views/Memory";
+import Projects from "./views/Projects";
+import Settings from "./views/Settings";
 import Inspector from "./components/Inspector";
 
 const RAIL: { id: ViewId; icon: string; label: string }[] = [
@@ -23,6 +25,7 @@ export default function App() {
     apiGet<{ items: Conversation[] }>("/api/conversations").then((r) => s.setConversations(r.items)).catch(() => {});
     apiGet<{ items: Skill[] }>("/api/skills").then((r) => s.setSkills(r.items)).catch(() => {});
     apiGet<{ items: MemoryFile[] }>("/api/memory").then((r) => s.setMemoryFiles(r.items)).catch(() => {});
+    apiGet<{ items: Project[] }>("/api/projects").then((r) => s.setProjects(r.items)).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -39,6 +42,8 @@ export default function App() {
     s.setView("chat");
     s.closePanels();
   }
+
+  const currentProject = s.projects.find((p) => p.id === s.currentProjectId);
 
   const layoutClass =
     "layout" +
@@ -60,25 +65,32 @@ export default function App() {
       </nav>
 
       <aside className="sidebar">
+        {currentProject && (
+          <div className="project-banner">
+            📁 {currentProject.name}
+            <button className="btn-ghost" onClick={() => s.setCurrentProjectId(null)}>×</button>
+          </div>
+        )}
         <button className="btn btn-block" onClick={newChat}>+ new chat</button>
         <div className="conv-list">
-          {s.conversations.map((c) => (
-            <div key={c.id}
-              className={c.id === s.currentId ? "conv active" : "conv"}
-              onClick={() => openConversation(c)}>
-              <div className="conv-title">{c.title || "untitled"}</div>
-              <div className="conv-date">{new Date(c.updatedAt).toLocaleString()}</div>
-            </div>
-          ))}
+          {s.conversations
+            .filter((c) => !s.currentProjectId || c.projectId === s.currentProjectId)
+            .map((c) => (
+              <div key={c.id}
+                className={c.id === s.currentId ? "conv active" : "conv"}
+                onClick={() => openConversation(c)}>
+                <div className="conv-title">{c.title || "untitled"}</div>
+                <div className="conv-date">{new Date(c.updatedAt).toLocaleString()}</div>
+              </div>
+            ))}
         </div>
       </aside>
 
       {s.view === "chat" && <Chat />}
       {s.view === "skills" && <Skills />}
       {s.view === "memory" && <Memory />}
-      {(s.view === "projects" || s.view === "settings") && (
-        <main className="chat"><div className="empty"><b>{s.view}</b><span className="muted">coming next</span></div></main>
-      )}
+      {s.view === "projects" && <Projects />}
+      {s.view === "settings" && <Settings />}
 
       <Inspector />
     </div>

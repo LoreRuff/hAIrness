@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ChatMessage, Conversation, MemoryFile, ModelInfo, Skill, SystemMode, Usage } from "../types";
+import type { ChatMessage, Conversation, MemoryFile, ModelInfo, Project, Skill, SystemMode, Usage } from "../types";
 
 export type ViewId = "chat" | "skills" | "memory" | "projects" | "settings";
 
@@ -58,6 +58,12 @@ interface HarnessState {
   setActiveSoul: (id: string | null) => void;
   activeFactIds: string[];
   toggleFact: (id: string) => void;
+
+  projects: Project[];
+  setProjects: (p: Project[]) => void;
+  currentProjectId: string | null;
+  setCurrentProjectId: (id: string | null) => void;
+
 }
 
 export const useStore = create<HarnessState>((set) => ({
@@ -131,4 +137,9 @@ export const useStore = create<HarnessState>((set) => ({
       lsSet("harness_facts", next);
       return { activeFactIds: next };
     }),
+
+  projects: [],
+  setProjects: (projects) => set({ projects }),
+  currentProjectId: lsGet<string | null>("harness_project", null),
+  setCurrentProjectId: (id) => { lsSet("harness_project", id); set({ currentProjectId: id }); },
 }));

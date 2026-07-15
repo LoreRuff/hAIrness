@@ -14,11 +14,13 @@ export default function Inspector() {
     <aside className="inspector">
       <h3>Model</h3>
       <input list="models" value={s.model} onChange={(e) => s.setModel(e.target.value)} spellCheck={false} />
-      <datalist id="models">
+            <datalist id="models">
         {s.models.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.inputPrice != null ? `$${m.inputPrice.toFixed(2)}/$${(m.outputPrice ?? 0).toFixed(2)} per 1M` : m.label}
-          </option>
+          <option
+            key={m.id}
+            value={m.id}
+            label={`${m.label}${m.inputPrice != null ? ` · $${m.inputPrice.toFixed(2)}/$${(m.outputPrice ?? 0).toFixed(2)} per 1M` : ""}`}
+          />
         ))}
       </datalist>
 

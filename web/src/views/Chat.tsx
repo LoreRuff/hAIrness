@@ -20,11 +20,16 @@ export default function Chat() {
     const { messages, currentId, conversations } = useStore.getState();
     const id = currentId ?? nanoid(12);
     const existing = conversations.find((c) => c.id === id);
-    const conv: Conversation = {
+        const conv: Conversation = {
       id,
+      projectId: useStore.getState().currentProjectId ?? undefined,
       title: existing?.title || (messages[0]?.content.slice(0, 60) || "New chat"),
       messages,
       usageTotal: [...(existing?.usageTotal ?? []), ...(usage ? [usage] : [])],
+      updatedAt: Date.now(),
+      nodeOrigin: "",
+    };
+
       updatedAt: Date.now(),
       nodeOrigin: "",
     };
