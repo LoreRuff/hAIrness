@@ -142,7 +142,7 @@ const [log, setLog] = useState<LogEntry[]>([]);
   }
 
 
-  return (
+    return (
     <main className="panel">
       <div className="panel-list">
         <button className="btn btn-block" onClick={openNew}>+ new graph</button>
@@ -155,97 +155,103 @@ const [log, setLog] = useState<LogEntry[]>([]);
         ))}
       </div>
 
-      <div className="panel-editor">
-        <h3>{sel ? "Edit graph" : "New graph"}</h3>
-        <div className="mode-toggle">
-          {(["pipeline", "jury"] as const).map((k) => (
-            <button key={k} className={kind === k ? "mode active" : "mode"}
-              onClick={() => setKind(k)} disabled={!!sel}>{k}</button>
-          ))}
-        </div>
-        <input placeholder="graph name" value={name} onChange={(e) => setName(e.target.value)} />
-
-        {kind === "pipeline" ? (
-          <>
-            {steps.map((st, i) => (
-              <div key={i} className="step-card">
-                <div className="step-head">
-                  <span className="muted">step {i + 1}</span>
-                  <button className="btn-ghost" onClick={() => setSteps(steps.filter((_, x) => x !== i))}>✕</button>
-                </div>
-                <input placeholder="step name" value={st.name}
-                  onChange={(e) => setSteps(steps.map((x, xi) => xi === i ? { ...x, name: e.target.value } : x))} />
-                <input list="models" placeholder="model" value={st.model} spellCheck={false}
-                  onChange={(e) => setSteps(steps.map((x, xi) => xi === i ? { ...x, model: e.target.value } : x))} />
-                <div className="mode-toggle">
-                  {(["append", "replace"] as const).map((m) => (
-                    <button key={m} className={st.mode === m ? "mode active" : "mode"}
-                      onClick={() => setSteps(steps.map((x, xi) => xi === i ? { ...x, mode: m } : x))}>{m}</button>
-                  ))}
-                </div>
-                <textarea rows={3} placeholder="system instructions for this step"
-                  value={st.system}
-                  onChange={(e) => setSteps(steps.map((x, xi) => xi === i ? { ...x, system: e.target.value } : x))} />
-              </div>
+      <div className="panel-editor node-split">
+        <div className="node-form">
+          <h3>{sel ? "Edit graph" : "New graph"}</h3>
+          <div className="mode-toggle">
+            {(["pipeline", "jury"] as const).map((k) => (
+              <button key={k} className={kind === k ? "mode active" : "mode"}
+                onClick={() => setKind(k)} disabled={!!sel}>{k}</button>
             ))}
-            <button className="btn-ghost" onClick={() => setSteps([...steps, { ...STEP }])}>+ add step</button>
-          </>
-        ) : (
-          <>
-            <h3>Panel models (answer in parallel)</h3>
-            {panel.map((p, i) => (
-              <div key={i} className="row-btns">
-                <input list="models" placeholder={`panel model ${i + 1}`} value={p} spellCheck={false}
-                  onChange={(e) => setPanel(panel.map((x, xi) => xi === i ? e.target.value : x))} />
-                <button className="btn-ghost" onClick={() => setPanel(panel.filter((_, x) => x !== i))}>✕</button>
-              </div>
-            ))}
-            <button className="btn-ghost" onClick={() => setPanel([...panel, ""])}>+ add model</button>
-            <h3>Judge model</h3>
-            <input list="models" placeholder="judge model" value={judge} spellCheck={false}
-              onChange={(e) => setJudge(e.target.value)} />
-            <h3>Criteria (comma-separated)</h3>
-            <input value={criteria} onChange={(e) => setCriteria(e.target.value)} />
-            <h3>System (optional, for panel)</h3>
-            <textarea rows={3} value={jurySystem} onChange={(e) => setJurySystem(e.target.value)} />
-          </>
-        )}
+          </div>
+          <input placeholder="graph name" value={name} onChange={(e) => setName(e.target.value)} />
 
-        <div className="row-btns">
-          <button className="btn" onClick={save}>save</button>
-          {sel && <button className="btn btn-stop" onClick={remove}>delete</button>}
+          {kind === "pipeline" ? (
+            <>
+              {steps.map((st, i) => (
+                <div key={i} className="step-card">
+                  <div className="step-head">
+                    <span className="muted">step {i + 1}</span>
+                    <button className="btn-ghost" onClick={() => setSteps(steps.filter((_, x) => x !== i))}>✕</button>
+                  </div>
+                  <input placeholder="step name" value={st.name}
+                    onChange={(e) => setSteps(steps.map((x, xi) => xi === i ? { ...x, name: e.target.value } : x))} />
+                  <input list="models" placeholder="model" value={st.model} spellCheck={false}
+                    onChange={(e) => setSteps(steps.map((x, xi) => xi === i ? { ...x, model: e.target.value } : x))} />
+                  <div className="mode-toggle">
+                    {(["append", "replace"] as const).map((m) => (
+                      <button key={m} className={st.mode === m ? "mode active" : "mode"}
+                        onClick={() => setSteps(steps.map((x, xi) => xi === i ? { ...x, mode: m } : x))}>{m}</button>
+                    ))}
+                  </div>
+                  <textarea rows={3} placeholder="system instructions for this step"
+                    value={st.system}
+                    onChange={(e) => setSteps(steps.map((x, xi) => xi === i ? { ...x, system: e.target.value } : x))} />
+                </div>
+              ))}
+              <button className="btn-ghost" onClick={() => setSteps([...steps, { ...STEP }])}>+ add step</button>
+            </>
+          ) : (
+            <>
+              <h3>Panel models (answer in parallel)</h3>
+              {panel.map((p, i) => (
+                <div key={i} className="row-btns">
+                  <input list="models" placeholder={`panel model ${i + 1}`} value={p} spellCheck={false}
+                    onChange={(e) => setPanel(panel.map((x, xi) => xi === i ? e.target.value : x))} />
+                  <button className="btn-ghost" onClick={() => setPanel(panel.filter((_, x) => x !== i))}>✕</button>
+                </div>
+              ))}
+              <button className="btn-ghost" onClick={() => setPanel([...panel, ""])}>+ add model</button>
+              <h3>Judge model</h3>
+              <input list="models" placeholder="judge model" value={judge} spellCheck={false}
+                onChange={(e) => setJudge(e.target.value)} />
+              <h3>Criteria (comma-separated)</h3>
+              <input value={criteria} onChange={(e) => setCriteria(e.target.value)} />
+              <h3>System (optional, for panel)</h3>
+              <textarea rows={3} value={jurySystem} onChange={(e) => setJurySystem(e.target.value)} />
+            </>
+          )}
+
+          <div className="row-btns">
+            <button className="btn" onClick={save}>save</button>
+            {sel && <button className="btn btn-stop" onClick={remove}>delete</button>}
+          </div>
         </div>
 
-        {sel && (
-          <>
-            <h3>Run</h3>
-            <textarea rows={3} placeholder="input for the graph" value={input}
-              onChange={(e) => setInput(e.target.value)} />
-            <button className="btn" onClick={run} disabled={running}>
-              {running ? "running…" : "run ▶"}
-            </button>
-            {log.length > 0 && (
-              <div className="run-log2">
-                {log.map((e, i) => {
-                  if (e.kind === "start") return <div key={i} className="rl-start">▶ {e.title}…</div>;
-                  if (e.kind === "usage") return <div key={i} className="rl-usage">{e.body}</div>;
-                  if (e.kind === "error") return <div key={i} className="rl-error">✗ {e.body}</div>;
-                  if (e.kind === "done") return <div key={i} className="rl-done">— done —</div>;
-                  return (
-                    <div key={i} className={e.kind === "final" ? "rl-card rl-final" : "rl-card"}>
-                      <div className="rl-card-head">
-                        {e.kind === "final" ? "★ " : "✓ "}{e.title}
-                        <button className="btn-ghost" onClick={() => navigator.clipboard.writeText(e.body ?? "")}>copy</button>
+        <div className="node-run">
+          <h3>Run</h3>
+          {!sel && <div className="muted">save the graph first, then run it here</div>}
+          {sel && (
+            <>
+              <textarea rows={3} placeholder="input for the graph" value={input}
+                onChange={(e) => setInput(e.target.value)} />
+              <button className="btn" onClick={run} disabled={running}>
+                {running ? "running…" : "run ▶"}
+              </button>
+              {log.length > 0 && (
+                <div className="run-log2">
+                  {log.map((e, i) => {
+                    if (e.kind === "start") return <div key={i} className="rl-start">▶ {e.title}…</div>;
+                    if (e.kind === "usage") return <div key={i} className="rl-usage">{e.body}</div>;
+                    if (e.kind === "error") return <div key={i} className="rl-error">✗ {e.body}</div>;
+                    if (e.kind === "done") return <div key={i} className="rl-done">— done —</div>;
+                    return (
+                      <div key={i} className={e.kind === "final" ? "rl-card rl-final" : "rl-card"}>
+                        <div className="rl-card-head">
+                          {e.kind === "final" ? "★ " : "✓ "}{e.title}
+                          <button className="btn-ghost" onClick={() => navigator.clipboard.writeText(e.body ?? "")}>copy</button>
+                        </div>
+                        <pre className="rl-card-body">{e.body?.trim() ? e.body : "(empty output)"}</pre>
                       </div>
-                      <pre className="rl-card-body">{e.body?.trim() ? e.body : "(empty output)"}</pre>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </main>
   );
+
 }
