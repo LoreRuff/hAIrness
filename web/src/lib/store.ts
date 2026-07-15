@@ -1,3 +1,4 @@
+import { schedulePrefsPush } from "./prefs";
 import { create } from "zustand";
 import type { ChatMessage, Conversation, Graph, MemoryFile, ModelInfo, Project, Skill, SystemMode, Usage } from "../types";
 
@@ -5,8 +6,10 @@ export type ViewId = "chat" | "nodes" | "skills" | "memory" | "projects" | "sett
 function lsGet<T>(key: string, fallback: T): T {
   try { return JSON.parse(localStorage.getItem(key) ?? "") as T; } catch { return fallback; }
 }
-function lsSet(key: string, v: unknown) { localStorage.setItem(key, JSON.stringify(v)); }
-
+function lsSet(key: string, v: unknown) {
+  localStorage.setItem(key, JSON.stringify(v));
+  schedulePrefsPush();
+}
 interface HarnessState {
   view: ViewId;
   setView: (v: ViewId) => void;
@@ -76,11 +79,11 @@ export const useStore = create<HarnessState>((set) => ({
   setModels: (models) => set({ models }),
 
   model: localStorage.getItem("harness_model") || "openai/gpt-4o-mini",
-  setModel: (model) => { localStorage.setItem("harness_model", model); set({ model }); },
+  setModel: (model) => { localStorage.setItem("harness_model", model); schedulePrefsPush(); set({ model }); },
   systemMode: lsGet<SystemMode>("harness_mode", "append"),
   setSystemMode: (systemMode) => { lsSet("harness_mode", systemMode); set({ systemMode }); },
   system: localStorage.getItem("harness_system") ?? "",
-  setSystem: (system) => { localStorage.setItem("harness_system", system); set({ system }); },
+   setSystem: (system) => {localStorage.setItem("harness_system", system); schedulePrefsPush(); set({ system }); },
   temperature: lsGet<number>("harness_temp", 0.7),
   setTemperature: (temperature) => { lsSet("harness_temp", temperature); set({ temperature }); },
 

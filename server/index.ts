@@ -12,6 +12,7 @@ import { models } from "./router/models.ts";
 import { crudRouter } from "./router/crud.ts";
 import { sync } from "./router/sync.ts";
 import { startSnapshotScheduler } from "./core/snapshot.ts";
+import { prefs } from "./router/prefs.ts";
 
 // ---------- built-in test page (declared FIRST — hoisting lesson learned) ----------
 const TEST_PAGE = /* html */ `<!DOCTYPE html>
@@ -127,6 +128,7 @@ app.route("/api/graphs", crudRouter("graphs"));
 app.route("/api/sync", sync);
 app.route("/api/graph", graph);
 app.route("/api/runs", crudRouter("graph_runs"));
+app.route("/api/prefs", prefs);
 
 
 // static frontend (web/dist) with SPA fallback; test page if no build yet

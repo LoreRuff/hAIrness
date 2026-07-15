@@ -1,6 +1,9 @@
+import { schedulePrefsPush } from "./prefs";
 export const getToken = () => localStorage.getItem("harness_token") || "";
-export const setToken = (t: string) => localStorage.setItem("harness_token", t);
-
+export const setToken = (t: string) => {
+  localStorage.setItem("harness_token", t);
+  schedulePrefsPush();
+};
 function headers(): Record<string, string> {
   const h: Record<string, string> = { "Content-Type": "application/json" };
   const t = getToken();
