@@ -1,3 +1,5 @@
+import { graph } from "./router/graph.ts";
+import { db } from "./db.ts";
 import "dotenv/config";
 import { existsSync, readFileSync } from "node:fs";
 import { timingSafeEqual } from "node:crypto";
@@ -119,6 +121,8 @@ app.route("/api/skills", crudRouter("skills"));
 app.route("/api/memory", crudRouter("memory_files"));
 app.route("/api/projects", crudRouter("projects"));
 app.route("/api/conversations", crudRouter("conversations"));
+app.route("/api/graphs", crudRouter("graphs"));
+app.route("/api/graph", graph);
 
 // static frontend (web/dist) with SPA fallback; test page if no build yet
 const DIST = "./web/dist";
@@ -135,4 +139,10 @@ if (hasDist) {
 serve({ fetch: app.fetch, port: config.port, hostname: config.host }, (info) => {
   console.log(`[harness] node=${config.nodeId} listening on http://${config.host}:${info.port}`);
   console.log(`[harness] frontend: ${hasDist ? "web/dist" : "built-in test page"} · auth: ${config.authToken ? "ON" : "off"} · key: ${config.openrouter.apiKey ? "present" : "MISSING"}`);
+function shutdown() {
+  try { db.close(); } catch {}   // closes + checkpoints WAL
+  process.exit(0);
+}
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
 });

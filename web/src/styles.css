@@ -117,3 +117,16 @@ textarea, input, select { background: var(--bg3); color: var(--fg); border: 1px 
 .settings h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 10px 0 2px; }
 .badge { background: var(--accent); color: #0a0d12; border-radius: 4px; font-size: 10px; padding: 1px 5px; margin-left: 4px; font-weight: 600; }
 .project-banner { display: flex; align-items: center; justify-content: space-between; gap: 6px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+
+.msg-del.armed { opacity: 1; color: #f85149; font-weight: 600; }
+
+@media (max-width: 900px) { .msg-del { opacity: .5; } }
+
+/* ---- nodes ---- */
+.step-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; background: var(--bg2); }
+.step-head { display: flex; justify-content: space-between; align-items: center; }
+.run-log { background: #0a0d12; border: 1px solid var(--border); border-radius: 8px; padding: 12px; white-space: pre-wrap; font-size: 12px; max-height: 50vh; overflow-y: auto; }
+.msg-head { display: flex; align-items: center; gap: 8px; }
+.msg-del { opacity: 0; transition: opacity .15s; }
+.msg:hover .msg-del { opacity: 1; }
+

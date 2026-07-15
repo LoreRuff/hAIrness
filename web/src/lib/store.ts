@@ -1,8 +1,7 @@
 import { create } from "zustand";
-import type { ChatMessage, Conversation, MemoryFile, ModelInfo, Project, Skill, SystemMode, Usage } from "../types";
+import type { ChatMessage, Conversation, Graph, MemoryFile, ModelInfo, Project, Skill, SystemMode, Usage } from "../types";
 
-export type ViewId = "chat" | "skills" | "memory" | "projects" | "settings";
-
+export type ViewId = "chat" | "nodes" | "skills" | "memory" | "projects" | "settings";
 function lsGet<T>(key: string, fallback: T): T {
   try { return JSON.parse(localStorage.getItem(key) ?? "") as T; } catch { return fallback; }
 }
@@ -63,6 +62,9 @@ interface HarnessState {
   setProjects: (p: Project[]) => void;
   currentProjectId: string | null;
   setCurrentProjectId: (id: string | null) => void;
+
+  graphs: Graph[];
+  setGraphs: (g: Graph[]) => void;
 
 }
 
@@ -142,4 +144,7 @@ export const useStore = create<HarnessState>((set) => ({
   setProjects: (projects) => set({ projects }),
   currentProjectId: lsGet<string | null>("harness_project", null),
   setCurrentProjectId: (id) => { lsSet("harness_project", id); set({ currentProjectId: id }); },
+  
+  graphs: [],
+  setGraphs: (graphs) => set({ graphs }),
 }));

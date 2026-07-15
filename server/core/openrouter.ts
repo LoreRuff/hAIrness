@@ -34,3 +34,24 @@ export async function listModels(): Promise<unknown> {
   if (!r.ok) throw new Error(`models ${r.status}`);
   return r.json();
 }
+export async function openrouterComplete(p: {
+  model: string;
+  messages: { role: string; content: unknown }[];
+  temperature?: number;
+}): Promise<{ text: string; usageRaw: unknown }> {
+  const r = await fetch(`${config.openrouter.baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({
+      model: p.model,
+      messages: p.messages,
+      temperature: p.temperature ?? 0.7,
+      stream: false,
+      usage: { include: true },
+    }),
+  });
+  if (!r.ok) throw new Error(`OpenRouter ${r.status}: ${(await r.text().catch(() => "")).slice(0, 200)}`);
+  const j: any = await r.json();
+  return { text: j.choices?.[0]?.message?.content ?? "", usageRaw: j.usage };
+}
+

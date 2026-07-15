@@ -91,7 +91,10 @@ export default function Chat() {
   }
 
   function stop() { abortRef.current?.abort(); }
-
+  function removeMessage(id: string) {
+    s.setMessages(useStore.getState().messages.filter((m) => m.id !== id));
+    void persist();
+  }
   const last = s.messages[s.messages.length - 1];
 
   return (
@@ -103,14 +106,17 @@ export default function Chat() {
             <span className="muted">model: {s.model} · mode: {s.systemMode}</span>
           </div>
         )}
-        {s.messages.map((m) => (
+         {s.messages.map((m) => (
           <Message
             key={m.id}
             msg={m}
             usage={s.usages[m.id]}
             streaming={s.streaming && m.id === last?.id && m.role === "assistant"}
+            onDelete={s.streaming ? undefined : () => removeMessage(m.id)}
           />
         ))}
+
+
       </div>
       <Composer onSend={send} onStop={stop} />
     </main>

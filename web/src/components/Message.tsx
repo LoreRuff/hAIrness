@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { ChatMessage, Usage } from "../types";
 import CodeBlock from "./CodeBlock";
 
@@ -17,14 +18,45 @@ function parseSegments(content: string): Seg[] {
   return segs;
 }
 
-export default function Message({ msg, usage, streaming }: {
-  msg: ChatMessage; usage?: Usage; streaming?: boolean;
+function DeleteButton({ onDelete }: { onDelete: () => void }) {
+  const [armed, setArmed] = useState(false);
+  const timer = useRef<number | null>(null);
+
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+
+  function click() {
+    if (armed) {
+      if (timer.current) clearTimeout(timer.current);
+      onDelete();
+    } else {
+      setArmed(true);
+      timer.current = window.setTimeout(() => setArmed(false), 2500);
+    }
+  }
+
+  return (
+    <button
+      className={armed ? "btn-ghost msg-del armed" : "btn-ghost msg-del"}
+      title={armed ? "Click again to delete" : "Remove from context"}
+      onClick={click}
+      onMouseLeave={() => { if (armed) { if (timer.current) clearTimeout(timer.current); setArmed(false); } }}
+    >
+      {armed ? "sure?" : "✕"}
+    </button>
+  );
+}
+
+export default function Message({ msg, usage, streaming, onDelete }: {
+  msg: ChatMessage; usage?: Usage; streaming?: boolean; onDelete?: () => void;
 }) {
   const segs = parseSegments(msg.content);
   const atts = msg.attachments ?? [];
   return (
     <div className={`msg msg-${msg.role}`}>
-      <div className="msg-role">{msg.role === "user" ? "you" : "harness"}</div>
+      <div className="msg-head">
+        <span className="msg-role">{msg.role === "user" ? "you" : "harness"}</span>
+        {onDelete && <DeleteButton onDelete={onDelete} />}
+      </div>
       {atts.length > 0 && (
         <div className="att-row">
           {atts.map((a) =>

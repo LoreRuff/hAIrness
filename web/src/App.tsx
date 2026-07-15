@@ -1,7 +1,9 @@
+import Nodes from "./views/Nodes";
+import type { Graph } from "./types";
 import { useEffect } from "react";
 import { useStore, type ViewId } from "./lib/store";
 import { apiGet } from "./lib/api";
-import type { Conversation, MemoryFile, ModelInfo, Project, Skill } from "./types";
+import type { Conversation, Graph, MemoryFile, ModelInfo, Project, Skill } from "./types";
 import Chat from "./views/Chat";
 import Skills from "./views/Skills";
 import Memory from "./views/Memory";
@@ -11,6 +13,7 @@ import Inspector from "./components/Inspector";
 
 const RAIL: { id: ViewId; icon: string; label: string }[] = [
   { id: "chat", icon: "💬", label: "Chat" },
+  { id: "nodes", icon: "🕸️", label: "Nodes" },
   { id: "skills", icon: "⚡", label: "Skills" },
   { id: "memory", icon: "🧠", label: "Memory" },
   { id: "projects", icon: "📁", label: "Projects" },
@@ -22,6 +25,7 @@ export default function App() {
 
   useEffect(() => {
     apiGet<{ items: ModelInfo[] }>("/api/models").then((r) => s.setModels(r.items)).catch(() => {});
+    apiGet<{ items: Graph[] }>("/api/graphs").then((r) => s.setGraphs(r.items)).catch(() => {});
     apiGet<{ items: Conversation[] }>("/api/conversations").then((r) => s.setConversations(r.items)).catch(() => {});
     apiGet<{ items: Skill[] }>("/api/skills").then((r) => s.setSkills(r.items)).catch(() => {});
     apiGet<{ items: MemoryFile[] }>("/api/memory").then((r) => s.setMemoryFiles(r.items)).catch(() => {});
@@ -87,6 +91,7 @@ export default function App() {
       </aside>
 
       {s.view === "chat" && <Chat />}
+      {s.view === "nodes" && <Nodes />}
       {s.view === "skills" && <Skills />}
       {s.view === "memory" && <Memory />}
       {s.view === "projects" && <Projects />}
