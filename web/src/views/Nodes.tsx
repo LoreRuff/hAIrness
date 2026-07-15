@@ -237,7 +237,7 @@ const [log, setLog] = useState<LogEntry[]>([]);
                         {e.kind === "final" ? "★ " : "✓ "}{e.title}
                         <button className="btn-ghost" onClick={() => navigator.clipboard.writeText(e.body ?? "")}>copy</button>
                       </div>
-                      <pre className="rl-card-body">{e.body}</pre>
+                      <pre className="rl-card-body">{e.body?.trim() ? e.body : "(empty output)"}</pre>
                     </div>
                   );
                 })}
