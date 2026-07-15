@@ -1,3 +1,15 @@
+import "dotenv/config";
+import { existsSync, readFileSync } from "node:fs";
+import { timingSafeEqual } from "node:crypto";
+import { Hono } from "hono";
+import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
+import { config } from "./config.ts";
+import { chat } from "./router/chat.ts";
+import { models } from "./router/models.ts";
+import { crudRouter } from "./router/crud.ts";
+
+// ---------- built-in test page (declared FIRST — hoisting lesson learned) ----------
 const TEST_PAGE = /* html */ `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AI Harness — test</title>
@@ -19,6 +31,8 @@ const TEST_PAGE = /* html */ `<!DOCTYPE html>
     <input id="model" value="openai/gpt-4o-mini" style="width:240px">
     <label>System mode</label>
     <select id="mode"><option value="append">append</option><option value="replace">replace</option></select>
+    <label>Token</label>
+    <input id="token" placeholder="HARNESS_TOKEN (if set)" style="width:200px">
   </div>
   <div class="row" style="width:100%">
     <input id="system" placeholder="custom system instructions (optional)" style="flex:1">
@@ -29,9 +43,11 @@ const TEST_PAGE = /* html */ `<!DOCTYPE html>
 
 <script>
 const $ = (id) => document.getElementById(id);
+$("token").value = localStorage.getItem("harness_token") || "";
 $("send").onclick = async () => {
   const log = $("log"); log.textContent = "";
   $("status").textContent = "connecting...";
+  localStorage.setItem("harness_token", $("token").value.trim());
   const payload = {
     model: $("model").value.trim(),
     systemMode: $("mode").value,
@@ -39,12 +55,10 @@ $("send").onclick = async () => {
     stream: true,
     messages: [{ id: "u1", role: "user", content: $("prompt").value, createdAt: Date.now() }]
   };
+  const headers = { "Content-Type": "application/json" };
+  if ($("token").value.trim()) headers["Authorization"] = "Bearer " + $("token").value.trim();
   try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    const res = await fetch("/api/chat", { method: "POST", headers, body: JSON.stringify(payload) });
     if (!res.ok || !res.body) { log.textContent = "HTTP " + res.status; $("status").textContent=""; return; }
     $("status").textContent = "streaming...";
     const reader = res.body.getReader();
@@ -79,3 +93,46 @@ $("send").onclick = async () => {
 };
 </script>
 </body></html>`;
+
+// ---------- app ----------
+const app = new Hono();
+
+// auth middleware (only if HARNESS_TOKEN is set; /api/health always open)
+app.use("/api/*", async (c, next) => {
+  if (!config.authToken || c.req.path === "/api/health") return next();
+  const h = c.req.header("Authorization") ?? "";
+  const got = h.startsWith("Bearer ") ? h.slice(7) : "";
+  const a = Buffer.from(got);
+  const b = Buffer.from(config.authToken);
+  const ok = a.length === b.length && timingSafeEqual(a, b);
+  if (!ok) return c.json({ error: "unauthorized" }, 401);
+  return next();
+});
+
+app.get("/api/health", (c) =>
+  c.json({ ok: true, nodeId: config.nodeId, hasKey: Boolean(config.openrouter.apiKey), time: Date.now() })
+);
+
+app.route("/api/chat", chat);
+app.route("/api/models", models);
+app.route("/api/skills", crudRouter("skills"));
+app.route("/api/memory", crudRouter("memory_files"));
+app.route("/api/projects", crudRouter("projects"));
+app.route("/api/conversations", crudRouter("conversations"));
+
+// static frontend (web/dist) with SPA fallback; test page if no build yet
+const DIST = "./web/dist";
+const hasDist = existsSync(`${DIST}/index.html`);
+
+if (hasDist) {
+  app.use("/*", serveStatic({ root: DIST }));
+  const indexHtml = readFileSync(`${DIST}/index.html`, "utf8");
+  app.get("*", (c) => c.html(indexHtml)); // SPA fallback
+} else {
+  app.get("*", (c) => c.html(TEST_PAGE));
+}
+
+serve({ fetch: app.fetch, port: config.port, hostname: config.host }, (info) => {
+  console.log(`[harness] node=${config.nodeId} listening on http://${config.host}:${info.port}`);
+  console.log(`[harness] frontend: ${hasDist ? "web/dist" : "built-in test page"} · auth: ${config.authToken ? "ON" : "off"} · key: ${config.openrouter.apiKey ? "present" : "MISSING"}`);
+});

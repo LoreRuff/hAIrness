@@ -5,24 +5,12 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-# adjust to where you cloned the repo:
-WorkingDirectory=/opt/harness
-EnvironmentFile=/opt/harness/.env
-# tsx is resolved from node_modules via npm start:
+User=root
+WorkingDirectory=/root/hAIrness
 ExecStart=/usr/bin/npm start
 Restart=on-failure
 RestartSec=3
-# run as a non-root user (create it: useradd -r -s /usr/sbin/nologin harness):
-User=harness
-Group=harness
-# light hardening:
-NoNewPrivileges=true
-ProtectSystem=full
-ProtectHome=true
-PrivateTmp=true
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=harness
+Environment=NODE_ENV=production
 
 [Install]
 WantedBy=multi-user.target
