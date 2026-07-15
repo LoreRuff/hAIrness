@@ -259,3 +259,12 @@ export interface Settings {
 /* ---------- API responses ---------- */
 export interface ApiList<T> { items: T[] }
 export interface ApiError { error: string }
+/* ---------- Attachments (composer) ---------- */
+export interface Attachment {
+  id: string;
+  kind: "image" | "text";
+  name: string;
+  mime: string;
+  dataUrl?: string;   // images: base64 data URL (multimodal payload)
+  text?: string;      // documents: extracted text (injected into prompt)
+}

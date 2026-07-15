@@ -2,7 +2,7 @@ import { config } from "../config.ts";
 
 export interface ChatParams {
   model: string;
-  messages: { role: string; content: string }[];
+  messages: { role: string; content: unknown }[];
   temperature?: number;
   signal?: AbortSignal;
 }

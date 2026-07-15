@@ -1,21 +1,20 @@
+import { useState } from "react";
 import { useStore } from "../lib/store";
 import { getToken, setToken } from "../lib/api";
-import { useState } from "react";
 
 export default function Inspector() {
   const s = useStore();
   const [tok, setTok] = useState(getToken());
   const lastUsage = Object.values(s.usages).at(-1);
 
+  const activeSkills = s.skills.filter((x) => s.activeSkillIds.includes(x.id));
+  const soul = s.memoryFiles.find((f) => f.id === s.activeSoulId);
+  const facts = s.memoryFiles.filter((f) => s.activeFactIds.includes(f.id));
+
   return (
     <aside className="inspector">
       <h3>Model</h3>
-      <input
-        list="models"
-        value={s.model}
-        onChange={(e) => s.setModel(e.target.value)}
-        spellCheck={false}
-      />
+      <input list="models" value={s.model} onChange={(e) => s.setModel(e.target.value)} spellCheck={false} />
       <datalist id="models">
         {s.models.map((m) => (
           <option key={m.id} value={m.id}>
@@ -27,11 +26,8 @@ export default function Inspector() {
       <h3>System override</h3>
       <div className="mode-toggle">
         {(["append", "replace"] as const).map((m) => (
-          <button
-            key={m}
-            className={s.systemMode === m ? "mode active" : "mode"}
-            onClick={() => s.setSystemMode(m)}
-          >{m}</button>
+          <button key={m} className={s.systemMode === m ? "mode active" : "mode"}
+            onClick={() => s.setSystemMode(m)}>{m}</button>
         ))}
       </div>
       <textarea
@@ -44,11 +40,15 @@ export default function Inspector() {
       />
 
       <h3>Temperature · {s.temperature.toFixed(1)}</h3>
-      <input
-        type="range" min={0} max={2} step={0.1}
-        value={s.temperature}
-        onChange={(e) => s.setTemperature(Number(e.target.value))}
-      />
+      <input type="range" min={0} max={2} step={0.1} value={s.temperature}
+        onChange={(e) => s.setTemperature(Number(e.target.value))} />
+
+      <h3>Active context</h3>
+      <div className="usage-box">
+        <div>soul: {soul ? soul.name : <span className="muted">none</span>}</div>
+        <div>facts: {facts.length ? facts.map((f) => f.name).join(", ") : <span className="muted">none</span>}</div>
+        <div>skills: {activeSkills.length ? activeSkills.map((x) => x.name).join(", ") : <span className="muted">none</span>}</div>
+      </div>
 
       <h3>Last usage</h3>
       {lastUsage ? (
@@ -61,12 +61,8 @@ export default function Inspector() {
       ) : <div className="muted">no calls yet</div>}
 
       <h3>Auth token</h3>
-      <input
-        type="password"
-        value={tok}
-        placeholder="HARNESS_TOKEN (if set)"
-        onChange={(e) => { setTok(e.target.value); setToken(e.target.value.trim()); }}
-      />
+      <input type="password" value={tok} placeholder="HARNESS_TOKEN (if set)"
+        onChange={(e) => { setTok(e.target.value); setToken(e.target.value.trim()); }} />
     </aside>
   );
 }

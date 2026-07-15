@@ -1,7 +1,12 @@
 import { create } from "zustand";
-import type { ChatMessage, Conversation, ModelInfo, SystemMode, Usage } from "../types";
+import type { ChatMessage, Conversation, MemoryFile, ModelInfo, Skill, SystemMode, Usage } from "../types";
 
 export type ViewId = "chat" | "skills" | "memory" | "projects" | "settings";
+
+function lsGet<T>(key: string, fallback: T): T {
+  try { return JSON.parse(localStorage.getItem(key) ?? "") as T; } catch { return fallback; }
+}
+function lsSet(key: string, v: unknown) { localStorage.setItem(key, JSON.stringify(v)); }
 
 interface HarnessState {
   view: ViewId;
@@ -32,6 +37,18 @@ interface HarnessState {
 
   streaming: boolean;
   setStreaming: (s: boolean) => void;
+
+  skills: Skill[];
+  setSkills: (s: Skill[]) => void;
+  activeSkillIds: string[];
+  toggleSkill: (id: string) => void;
+
+  memoryFiles: MemoryFile[];
+  setMemoryFiles: (m: MemoryFile[]) => void;
+  activeSoulId: string | null;
+  setActiveSoul: (id: string | null) => void;
+  activeFactIds: string[];
+  toggleFact: (id: string) => void;
 }
 
 export const useStore = create<HarnessState>((set) => ({
@@ -69,4 +86,30 @@ export const useStore = create<HarnessState>((set) => ({
 
   streaming: false,
   setStreaming: (streaming) => set({ streaming }),
+
+  skills: [],
+  setSkills: (skills) => set({ skills }),
+  activeSkillIds: lsGet<string[]>("harness_active_skills", []),
+  toggleSkill: (id) =>
+    set((s) => {
+      const next = s.activeSkillIds.includes(id)
+        ? s.activeSkillIds.filter((x) => x !== id)
+        : [...s.activeSkillIds, id];
+      lsSet("harness_active_skills", next);
+      return { activeSkillIds: next };
+    }),
+
+  memoryFiles: [],
+  setMemoryFiles: (memoryFiles) => set({ memoryFiles }),
+  activeSoulId: lsGet<string | null>("harness_soul", null),
+  setActiveSoul: (id) => { lsSet("harness_soul", id); set({ activeSoulId: id }); },
+  activeFactIds: lsGet<string[]>("harness_facts", []),
+  toggleFact: (id) =>
+    set((s) => {
+      const next = s.activeFactIds.includes(id)
+        ? s.activeFactIds.filter((x) => x !== id)
+        : [...s.activeFactIds, id];
+      lsSet("harness_facts", next);
+      return { activeFactIds: next };
+    }),
 }));

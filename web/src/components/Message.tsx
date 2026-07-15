@@ -21,9 +21,19 @@ export default function Message({ msg, usage, streaming }: {
   msg: ChatMessage; usage?: Usage; streaming?: boolean;
 }) {
   const segs = parseSegments(msg.content);
+  const atts = msg.attachments ?? [];
   return (
     <div className={`msg msg-${msg.role}`}>
       <div className="msg-role">{msg.role === "user" ? "you" : "harness"}</div>
+      {atts.length > 0 && (
+        <div className="att-row">
+          {atts.map((a) =>
+            a.kind === "image"
+              ? <img key={a.id} src={a.dataUrl} alt={a.name} className="att-preview" />
+              : <span key={a.id} className="att-chip">📄 <span className="att-name">{a.name}</span></span>
+          )}
+        </div>
+      )}
       <div className="msg-body">
         {segs.map((s, i) =>
           s.type === "code"
