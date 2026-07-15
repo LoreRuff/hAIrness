@@ -10,6 +10,8 @@ import { config } from "./config.ts";
 import { chat } from "./router/chat.ts";
 import { models } from "./router/models.ts";
 import { crudRouter } from "./router/crud.ts";
+import { sync } from "./router/sync.ts";
+import { startSnapshotScheduler } from "./core/snapshot.ts";
 
 // ---------- built-in test page (declared FIRST — hoisting lesson learned) ----------
 const TEST_PAGE = /* html */ `<!DOCTYPE html>
@@ -122,7 +124,10 @@ app.route("/api/memory", crudRouter("memory_files"));
 app.route("/api/projects", crudRouter("projects"));
 app.route("/api/conversations", crudRouter("conversations"));
 app.route("/api/graphs", crudRouter("graphs"));
+app.route("/api/sync", sync);
 app.route("/api/graph", graph);
+app.route("/api/runs", crudRouter("graph_runs"));
+
 
 // static frontend (web/dist) with SPA fallback; test page if no build yet
 const DIST = "./web/dist";
@@ -138,6 +143,7 @@ if (hasDist) {
 
 serve({ fetch: app.fetch, port: config.port, hostname: config.host }, (info) => {
   console.log(`[harness] node=${config.nodeId} listening on http://${config.host}:${info.port}`);
+startSnapshotScheduler();
   console.log(`[harness] frontend: ${hasDist ? "web/dist" : "built-in test page"} · auth: ${config.authToken ? "ON" : "off"} · key: ${config.openrouter.apiKey ? "present" : "MISSING"}`);
 function shutdown() {
   try { db.close(); } catch {}   // closes + checkpoints WAL

@@ -9,6 +9,7 @@ type Kind = "pipeline" | "jury";
 type StepKind = "model" | "jury";
 interface StepDraft { kind: StepKind; name: string; model: string; system: string; mode: SystemMode; juryGraphId: string }
 interface LogEntry { kind: "start" | "output" | "final" | "usage" | "error" | "done"; title?: string; body?: string }
+interface RunRecord { id: string; graphId: string; input: string; log: LogEntry[]; updatedAt?: number }
 
 const STEP: StepDraft = { kind: "model", name: "", model: "", system: "", mode: "append", juryGraphId: "" };
 
@@ -25,6 +26,7 @@ export default function Nodes() {
   const [winnerOnly, setWinnerOnly] = useState(false);
   const [input, setInput] = useState("");
   const [log, setLog] = useState<LogEntry[]>([]);
+  const [runs, setRuns] = useState<RunRecord[]>([]);
   const [running, setRunning] = useState(false);
 
   const juryGraphs = s.graphs.filter((g) => g.nodes[0]?.type === "jury" && g.id !== sel);
@@ -33,15 +35,21 @@ export default function Nodes() {
     setSteps(steps.map((x, xi) => (xi === i ? { ...x, ...patch } : x)));
   }
 
+  async function refreshRuns(gid: string) {
+    const { items } = await apiGet<{ items: RunRecord[] }>("/api/runs").catch(() => ({ items: [] as RunRecord[] }));
+    setRuns(items.filter((r) => r.graphId === gid));
+  }
+
   function openNew() {
     setSel(null); setKind("pipeline"); setName("");
     setSteps([{ ...STEP }]); setPanel(["", ""]); setJudge("");
     setCriteria("accuracy, clarity, completeness"); setJurySystem("");
-    setWinnerOnly(false); setLog([]);
+    setWinnerOnly(false); setLog([]); setRuns([]);
   }
 
   function open(g: Graph) {
     setSel(g.id); setName(g.name); setLog([]);
+    void refreshRuns(g.id);
     const root = g.nodes[0];
     if (root?.type === "pipeline") {
       setKind("pipeline");
@@ -143,8 +151,9 @@ export default function Nodes() {
     const g = s.graphs.find((x) => x.id === sel);
     const rootId = g?.nodes[0]?.id;
     const nodeName = (id: string) => g?.nodes.find((n) => n.id === id)?.name ?? id;
+    const entries: LogEntry[] = [];
     setLog([]); setRunning(true);
-    const add = (e: LogEntry) => setLog((l) => [...l, e]);
+    const add = (e: LogEntry) => { entries.push(e); setLog((l) => [...l, e]); };
     try {
       await streamEvents("/api/graph/run", { graphId: sel, input }, (ev) => {
         if (ev.type === "node_start") add({ kind: "start", title: nodeName(ev.nodeId) });
@@ -164,7 +173,15 @@ export default function Nodes() {
       add({ kind: "error", body: String(e?.message ?? e) });
     } finally {
       setRunning(false);
+      // persist the run so it survives reloads, backups, snapshots and sync
+      await apiPost("/api/runs", { graphId: sel, input, log: entries }).catch(() => {});
+      await refreshRuns(sel);
     }
+  }
+
+  async function deleteRun(id: string) {
+    await apiDelete(`/api/runs/${id}`);
+    if (sel) await refreshRuns(sel);
   }
 
   return (
@@ -293,6 +310,21 @@ export default function Nodes() {
                     );
                   })}
                 </div>
+              )}
+
+              {runs.length > 0 && (
+                <>
+                  <h3>Past runs</h3>
+                  {runs.map((r) => (
+                    <div key={r.id} className="item" onClick={() => { setInput(r.input); setLog(r.log ?? []); }}>
+                      <div className="item-main">
+                        <div>{r.input.slice(0, 60) || "(no input)"}</div>
+                        <div className="muted item-sub">{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : ""}</div>
+                      </div>
+                      <button className="btn-ghost" onClick={(e) => { e.stopPropagation(); void deleteRun(r.id); }}>✕</button>
+                    </div>
+                  ))}
+                </>
               )}
             </>
           )}
