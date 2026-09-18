@@ -1,0 +1,10 @@
+{
+  "_comment": "Tool registry (hot-swapped on change, no restart). 'builtin' tools are implemented in server/core/tools.ts; each MCP server is spawned lazily via stdio and its tools auto-discovered. Wire name of an MCP tool: mcp_<server>_<tool> (declare that string in a Skill's tools[] to bind it). perms: net/fs-read/fs-write/exec — documentation for the policy engine, not enforced yet.",
+  "mcpServers": {
+    "demo": {
+      "command": "node",
+      "args": ["tools/demo-mcp.mjs"],
+      "perms": []
+    }
+  }
+}

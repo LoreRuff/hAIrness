@@ -4,6 +4,8 @@ export interface ChatParams {
   model: string;
   messages: { role: string; content: unknown }[];
   temperature?: number;
+  reasoning?: string; // effort hint: low | medium | high; omitted when unset
+  tools?: unknown[]; // OpenAI function-calling specs; omitted when empty
   signal?: AbortSignal;
 }
 
@@ -14,6 +16,13 @@ const headers = () => ({
   "X-Title": config.openrouter.appTitle,
 });
 
+// MAX_TOKENS_PER_RUN caps the generation size of every provider call (the only
+// enforceable per-run ceiling: prompt size is known only after the fact).
+// 0 = disabled, no max_tokens field so model defaults are preserved.
+function runCeiling() {
+  return config.budget.maxTokensPerRun > 0 ? { max_tokens: config.budget.maxTokensPerRun } : {};
+}
+
 export async function openrouterChat(p: ChatParams): Promise<Response> {
   return fetch(`${config.openrouter.baseUrl}/chat/completions`, {
     method: "POST",
@@ -23,8 +32,11 @@ export async function openrouterChat(p: ChatParams): Promise<Response> {
       model: p.model,
       messages: p.messages,
       temperature: p.temperature ?? 0.7,
+      ...(p.reasoning ? { reasoning: { effort: p.reasoning } } : {}),
       stream: true,
       usage: { include: true },
+      ...runCeiling(),
+      ...(p.tools?.length ? { tools: p.tools, tool_choice: "auto" } : {}),
     }),
   });
 }
@@ -53,6 +65,7 @@ export async function openrouterComplete(p: {
   model: string;
   messages: { role: string; content: unknown }[];
   temperature?: number;
+  reasoning?: string; // effort hint (graph nodes): omitted when unset
 }): Promise<{ text: string; usageRaw: unknown }> {
   const r = await fetch(`${config.openrouter.baseUrl}/chat/completions`, {
     method: "POST",
@@ -61,8 +74,10 @@ export async function openrouterComplete(p: {
       model: p.model,
       messages: p.messages,
       temperature: p.temperature ?? 0.7,
+      ...(p.reasoning ? { reasoning: { effort: p.reasoning } } : {}),
       stream: false,
       usage: { include: true },
+      ...runCeiling(),
     }),
   });
   if (!r.ok) throw new Error(`OpenRouter ${r.status}: ${(await r.text().catch(() => "")).slice(0, 200)}`);

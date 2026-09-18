@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { applySyncRow, metaGet, metaSet, rowsSince, TABLES, type TableName } from "../db.ts";
+import { applySyncRow, metaGet, metaSet, pruneTombstones, rowsSince, TABLES, type TableName } from "../db.ts";
 import { config } from "../config.ts";
 import { listSnapshots, makeSnapshot } from "../core/snapshot.ts";
 
@@ -8,6 +8,7 @@ export const sync = new Hono();
 /* peer B calls this on peer A to fetch changes */
 sync.get("/pull", (c) => {
   const since = Number(c.req.query("since") ?? 0);
+  pruneTombstones();
   return c.json({ since, nodeId: config.nodeId, rows: rowsSince(since) });
 });
 

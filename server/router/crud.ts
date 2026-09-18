@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { nanoid } from "nanoid";
 import { listRows, getRow, upsertRow, deleteRow, type TableName } from "../db.ts";
 
-export function crudRouter(table: TableName) {
+export function crudRouter(table: TableName, onWrite?: (row: Record<string, unknown>) => void) {
   const r = new Hono();
 
   r.get("/", (c) => c.json({ items: listRows(table) }));
@@ -16,6 +16,7 @@ export function crudRouter(table: TableName) {
     const body = (await c.req.json()) as Record<string, unknown>;
     const row = { ...body, id: (body.id as string) || nanoid(12) };
     upsertRow(table, row as { id: string });
+    onWrite?.(row);
     return c.json(getRow(table, row.id));
   });
 
@@ -23,6 +24,7 @@ export function crudRouter(table: TableName) {
     const body = (await c.req.json()) as Record<string, unknown>;
     const row = { ...body, id: c.req.param("id") };
     upsertRow(table, row as { id: string });
+    onWrite?.(row);
     return c.json(getRow(table, row.id));
   });
 
