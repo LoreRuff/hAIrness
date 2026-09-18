@@ -2,13 +2,29 @@ import { useEffect, useRef } from "react";
 import { nanoid } from "nanoid";
 import { useStore } from "../lib/store";
 import { streamChat } from "../lib/sse";
-import { apiGet, apiPut } from "../lib/api";
+import { apiGet, apiPost, apiPut } from "../lib/api";
 import type { Attachment, Conversation, Usage } from "../types";
 import Message from "../components/Message";
 import Composer from "../components/Composer";
+import ContextChips from "../components/ContextChips";
 
 export default function Chat() {
   const s = useStore();
+
+  // N3 auto-memory: after a batch of messages the chat goes idle → schedule one
+  // background analysis of the conversation. Fire-and-forget: the one-shot
+  // "only if messages.length > marker" rule lives server-side (analyzedCount).
+  const IDLE_MS = 90_000;
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function scheduleAnalysis() {
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    idleTimer.current = setTimeout(() => {
+      idleTimer.current = null;
+      const st = useStore.getState();
+      if (!st.currentId || st.messages.length < 4) return;
+      apiPost("/api/memory-analysis/analyze", { conversationId: st.currentId }).catch(() => {});
+    }, IDLE_MS);
+  }
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -47,7 +63,19 @@ export default function Chat() {
       .map((id) => st.skills.find((x) => x.id === id))
       .filter(Boolean)
       .map((sk) => `## ${sk!.name}\n${sk!.instructions}`);
-    return { soul, facts, skillInstructions };
+    const promptInstructions = st.activePromptIds
+      .map((id) => st.prompts.find((x) => x.id === id))
+      .filter(Boolean)
+      .map((p) => `## ${p!.name}\n${p!.content}`);
+    // Skills declare tools: their union is what the server declares to the
+    // provider for this call (Skill.tools[] bound at runtime).
+    const tools = [...new Set(
+      st.activeSkillIds
+        .map((id) => st.skills.find((x) => x.id === id))
+        .filter(Boolean)
+        .flatMap((sk) => sk!.tools)
+    )];
+    return { soul, facts, skillInstructions, promptInstructions, tools };
   }
 
   async function send(text: string, attachments: Attachment[]) {
@@ -58,6 +86,7 @@ export default function Chat() {
     const asstMsg = { id: nanoid(10), role: "assistant" as const, content: "", createdAt: Date.now() };
     s.setMessages([...s.messages, userMsg, asstMsg]);
     s.setStreaming(true);
+    if (idleTimer.current) { clearTimeout(idleTimer.current); idleTimer.current = null; }
 
     const ac = new AbortController();
     abortRef.current = ac;
@@ -70,13 +99,19 @@ export default function Chat() {
           systemMode: s.systemMode,
           system: s.system.trim() || undefined,
           temperature: s.temperature,
+          reasoning: s.reasoning || undefined,
           stream: true,
+          contextWindow: s.contextWindow || undefined,
+          summaryPrompt: s.summaryPrompt.trim() || undefined,
           messages: [...useStore.getState().messages.slice(0, -1)],
           ...buildContext(),
         },
         (ev) => {
           if (ev.type === "token") s.appendToLast(ev.text);
+          else if (ev.type === "reasoning") s.appendToLastReasoning(ev.text);
           else if (ev.type === "usage") { usage = ev.usage; s.setUsage(asstMsg.id, ev.usage); }
+          else if (ev.type === "tool_call") s.attachToolCall(ev.call);
+          else if (ev.type === "tool_result") s.appendToolResult(ev.callId, ev.result);
           else if (ev.type === "error") s.appendToLast(`\n[error] ${ev.message}`);
         },
         ac.signal
@@ -87,6 +122,7 @@ export default function Chat() {
       s.setStreaming(false);
       abortRef.current = null;
       await persist(usage);
+      scheduleAnalysis();
     }
   }
 
@@ -97,8 +133,16 @@ export default function Chat() {
   }
   const last = s.messages[s.messages.length - 1];
 
+  // Text-only warning: active skills declare tools, but the selected model
+  // cannot use them (OpenRouter would just receive useless tool schemas).
+  const m = s.models.find((x) => x.id === s.model);
+  const textOnly = buildContext().tools.length > 0 && m?.supportsTools === false;
+
   return (
     <main className="chat">
+      {textOnly && (
+        <div className="chat-warn muted">warning: {s.model} is text-only · active skills declare tools it cannot use</div>
+      )}
       <div className="chat-scroll" ref={scrollRef}>
         {s.messages.length === 0 && (
           <div className="empty">
@@ -118,6 +162,7 @@ export default function Chat() {
 
 
       </div>
+      <ContextChips />
       <Composer onSend={send} onStop={stop} />
     </main>
   );

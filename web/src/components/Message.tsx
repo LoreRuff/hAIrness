@@ -4,6 +4,12 @@ import CodeBlock from "./CodeBlock";
 
 interface Seg { type: "text" | "code"; lang?: string; body: string; closed?: boolean }
 
+function ToolResultBody({ content }: { content: string }) {
+  let pretty = content;
+  try { pretty = JSON.stringify(JSON.parse(content), null, 2); } catch { /* keep raw */ }
+  return <pre className="tool-result-body">{pretty}</pre>;
+}
+
 function parseSegments(content: string): Seg[] {
   const segs: Seg[] = [];
   const re = /```(\w*)[^\S\n]*\n([\s\S]*?)(```|$)/g;
@@ -46,17 +52,64 @@ function DeleteButton({ onDelete }: { onDelete: () => void }) {
   );
 }
 
+// Reasoning (CoT) view. While the model is streaming, the block opens itself
+// and pins to the newest token so the thinking is visible live; once done it
+// collapses unless the user re-opens it. Clicking anywhere inside collapses it
+// (unless the user is mid text-selection, which must keep working).
+function Thinking({ text, streaming }: { text: string; streaming?: boolean }) {
+  const [open, setOpen] = useState(Boolean(streaming));
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const downAt = useRef({ x: 0, y: 0 });
+  useEffect(() => { setOpen(Boolean(streaming)); }, [streaming]);
+  useEffect(() => {
+    if (open && streaming && bodyRef.current)
+      bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+  }, [text, open, streaming]);
+  return (
+    <details className="thinking" open={open}
+      onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
+      onMouseDown={(e) => { downAt.current = { x: e.clientX, y: e.clientY }; }}
+      onClick={(e) => {
+        // Click anywhere collapses. A drag (text selection) must not: it moves.
+        const moved = Math.hypot(e.clientX - downAt.current.x, e.clientY - downAt.current.y);
+        if (moved < 5 && !window.getSelection()?.toString()) setOpen(false);
+      }}>
+      <summary>💭 thinking</summary>
+      <div className="thinking-body" ref={bodyRef}>{text}</div>
+    </details>
+  );
+}
+
 export default function Message({ msg, usage, streaming, onDelete }: {
   msg: ChatMessage; usage?: Usage; streaming?: boolean; onDelete?: () => void;
 }) {
   const segs = parseSegments(msg.content);
   const atts = msg.attachments ?? [];
+  const label = msg.role === "user" ? "you" : msg.role === "tool" ? "tool" : "harness";
   return (
     <div className={`msg msg-${msg.role}`}>
       <div className="msg-head">
-        <span className="msg-role">{msg.role === "user" ? "you" : "harness"}</span>
+        <span className="msg-role">{label}</span>
         {onDelete && <DeleteButton onDelete={onDelete} />}
       </div>
+      {msg.reasoning && <Thinking text={msg.reasoning} streaming={streaming} />}
+      {(msg.toolCalls?.length ?? 0) > 0 && (
+        <div className="tool-row">
+          {msg.toolCalls!.map((tc) => {
+            const q = typeof tc.args.query === "string" ? tc.args.query : JSON.stringify(tc.args);
+            return (
+              <span key={tc.id} className="tool-chip">
+                🔍 {tc.name}: “{q}”
+              </span>
+            );
+          })}
+        </div>
+      )}
+      {msg.role === "tool" && (
+        <div className="tool-result">
+          <ToolResultBody content={msg.content} />
+        </div>
+      )}
       {atts.length > 0 && (
         <div className="att-row">
           {atts.map((a) =>

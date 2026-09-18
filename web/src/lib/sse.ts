@@ -13,7 +13,15 @@ export async function streamEvents(
 
   const res = await fetch(path, { method: "POST", headers, body: JSON.stringify(payload), signal });
   if (!res.ok || !res.body) {
-    onEvent({ type: "error", message: `HTTP ${res.status}` });
+    // Quota (429) and rate-limit rejections answer with JSON before any SSE
+    // frame; surface the human error through the same error channel so Chat
+    // prints it like any other failure.
+    let message = `HTTP ${res.status}`;
+    // A JSON error body still arrives as a ReadableStream, so !res.ok alone
+    // is the right trigger for the parse (checking !res.body never fires).
+    const b = await res.json().catch(() => null) as { error?: string; resetAt?: number } | null;
+    if (b?.error) message = b.resetAt ? `${b.error} · resets at ${new Date(b.resetAt).toLocaleString()}` : b.error;
+    onEvent({ type: "error", message });
     return;
   }
 

@@ -1,7 +1,9 @@
+// Secrets (harness_token, harness_peer_tok) are NOT synced: H3 keeps them
+// local-only, the server denies them anyway.
 const KEYS = [
-  "harness_token", "harness_model", "harness_mode", "harness_system", "harness_temp",
+  "harness_model", "harness_mode", "harness_system", "harness_temp",
   "harness_enter_send", "harness_active_skills", "harness_soul", "harness_facts",
-  "harness_project", "harness_peer", "harness_peer_tok",
+  "harness_project", "harness_peer", "harness_theme", "harness_accent",
 ];
 
 function authHeaders(): Record<string, string> {

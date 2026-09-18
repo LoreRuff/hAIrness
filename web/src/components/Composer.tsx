@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "../lib/store";
+import { effortsFor } from "../lib/store";
 import { fileToAttachment } from "../lib/files";
 import type { Attachment } from "../types";
 
@@ -13,6 +14,16 @@ export default function Composer({ onSend, onStop }: {
   const streaming = useStore((s) => s.streaming);
   const enterToSend = useStore((s) => s.enterToSend);
   const toggleEnterToSend = useStore((s) => s.toggleEnterToSend);
+  const reasoning = useStore((s) => s.reasoning);
+  const setReasoning = useStore((s) => s.setReasoning);
+  const model = useStore((s) => s.model);
+  const models = useStore((s) => s.models);
+  const efforts = effortsFor(models, model);
+  // Model switched to one that doesn't accept the stored effort → back to auto.
+  useEffect(() => {
+    if (reasoning && !efforts.includes(reasoning)) setReasoning("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model]);
 
   async function addFiles(files: FileList | File[]) {
     for (const f of Array.from(files)) {
@@ -74,6 +85,11 @@ export default function Composer({ onSend, onStop }: {
           rows={3}
         />
         <div className="composer-btns">
+          <select className="btn-ghost thinking-pick" title="Reasoning effort (how much the model thinks)"
+            value={reasoning} onChange={(e) => setReasoning(e.target.value)}>
+            <option value="">🧠 auto</option>
+            {efforts.map((e) => <option key={e} value={e}>🧠 {e}</option>)}
+          </select>
           <button
             className="btn-ghost"
             title="Toggle send shortcut"

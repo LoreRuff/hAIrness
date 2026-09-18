@@ -1,57 +1,170 @@
+/* hAIrness design tokens — the ONLY place where raw colors live.
+ * Theming rule (FUTUREHANDOFF §6): every hex/rgba outside this block is a bug.
+ * UI-1 is a pure extraction: values are byte-identical to the pre-token sheet. */
 :root {
+  /* surfaces + text */
   --bg: #0d1117; --bg2: #11161d; --bg3: #161b22;
-  --border: #222b36; --fg: #c9d1d9; --muted: #8b949e; --accent: #58a6ff;
+  --border: #222b36; --fg: #c9d1d9; --muted: #8b949e;
+  --accent: #58a6ff; --fg-on-accent: #0a0d12;
+  /* deep well for code output (darker than --bg so code reads as "inside") */
+  --well: #0a0d12;
+  /* semantics */
+  --success: #9ece6a;
+  --add: #4ec96a; --del: #e06c5a;
+  --danger: #f85149; --danger-bg: rgba(248, 81, 73, .08); --danger-border: rgba(248, 81, 73, .4);
+  --warning: #e3b341; --dirty: #f0c674;
+  --success-border: rgba(46, 160, 67, .55);
+  --accent-glow: rgba(88, 166, 255, .45);
+  /* context chip kinds (kind-prompt follows the accent family on purpose) */
+  --kind-soul: rgba(188, 140, 255, .45);
+  --kind-prompt: rgba(88, 166, 255, .45);
+  --kind-fact: rgba(158, 206, 106, .45);
+  --kind-skill: rgba(240, 198, 116, .45);
+  /* overlays + neutral wells + shadows (black-based: OK across themes) */
+  --overlay: rgba(0, 0, 0, .5); --overlay-strong: rgba(0, 0, 0, .55);
+  --well-soft: rgba(127, 127, 127, .08);
+  --shadow-sm: 0 4px 18px rgba(0, 0, 0, .25);
+  --shadow-md: 0 8px 30px rgba(0, 0, 0, .5);
+  --shadow-lg: 0 16px 50px rgba(0, 0, 0, .6);
+  /* code wells stay DARK in every theme: the vendored shiki theme only has a
+   * dark palette, so light-theme code would be unreadable otherwise. */
+  --code-bg: #0a0d12; --code-fg: #c9d1d9; --code-out-fg: #9ece6a;
 }
+
+/* Light theme (bianco scurissimo). Contrast: fg 13:1, accent 5.3:1,
+ * fg-on-accent 5.3:1 — WCAG AA ok. Accent shifts to a deeper blue. */
+[data-theme="light"] {
+  --bg: #f6f7f9; --bg2: #eef0f3; --bg3: #e2e5ea;
+  --border: #d1d6dd; --fg: #24292f; --muted: #57606a;
+  --accent: #0969da; --fg-on-accent: #ffffff;
+  --success: #1a7f37;
+  --add: #1a7f37; --del: #cf222e;
+  --danger: #cf222e; --danger-bg: rgba(207, 34, 46, .08); --danger-border: rgba(207, 34, 46, .4);
+  --warning: #9a6700; --dirty: #9a6700;
+  --success-border: rgba(26, 127, 55, .55);
+  --accent-glow: rgba(9, 105, 218, .35);
+  --kind-soul: rgba(137, 87, 229, .5);
+  --kind-prompt: rgba(9, 105, 218, .5);
+  --kind-fact: rgba(26, 127, 55, .5);
+  --kind-skill: rgba(154, 103, 0, .5);
+  --overlay: rgba(20, 24, 29, .4); --overlay-strong: rgba(20, 24, 29, .5);
+  --well-soft: rgba(20, 24, 29, .05);
+  --shadow-sm: 0 4px 18px rgba(20, 24, 29, .12);
+  --shadow-md: 0 8px 30px rgba(20, 24, 29, .18);
+  --shadow-lg: 0 16px 50px rgba(20, 24, 29, .24);
+}
+
+/* Black theme (OLED): pure-black surfaces, minimum emission. Black text on
+ * the bright accent (8.2:1) beats white (2.6:1) — and saves pixels. */
+[data-theme="black"] {
+  --bg: #000000; --bg2: #05070b; --bg3: #0c1017;
+  --border: #1d2733;
+  --fg-on-accent: #000000;
+  --well: #000000;
+  --accent-glow: rgba(88, 166, 255, .3);
+}
+
+/* z-index scale (U7, documented): picker 20 < rail 30 < backdrop 35 < sidebar/inspector 40
+ * < topbar-btn 50 < chips/palette context < palette 100 < gen-modal 910 < toast 1000. */
 * { box-sizing: border-box; }
-body { font-family: ui-monospace, "SF Mono", Menlo, monospace; color: var(--fg); font-size: 13px; }
+/* tabular-nums everywhere: every number in this app is data (tokens, costi,
+ * tempi) and must not jitter as digits stream in. */
+body { font-family: ui-monospace, "SF Mono", Menlo, monospace; color: var(--fg); font-size: 13px; font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-.layout { display: grid; grid-template-columns: 52px 230px 1fr 300px; height: 100vh; }
+/* ---- UI-5 component families: one shared base each, deltas on the classes below ----
+ * Placed BEFORE every component rule so per-class overrides win the cascade. */
+/* Controls: every clickable inherits the app font and shows the pointer;
+ * visual identity (bg, radius, size) stays per-class. */
+.btn, .btn-sm, .btn-ghost, .btn-attach, .conv-op, .rail-btn, .topbar-btn, .mode, .chip-x, .pick {
+  font: inherit; cursor: pointer;
+}
+/* Chips: same surface, four shapes. .chip is the pill (radius 999), the rest
+ * are boxed tags with progressively denser type. */
+.chip, .att-chip, .tool-chip, .gnda-chip {
+  background: var(--bg3); border: 1px solid var(--border);
+}
+/* Panels: boxed surface with the standard hairline. Radius/background/padding
+ * are per-class; exceptions (.thinking-body dashed, .rl-final accent) come later. */
+.codeblock, .mode-toggle, .usage-box, .insp-sec, .project-banner, .tool-result-body,
+.rl-card, .gnda, .gen-modal, .picker, .palette, .login, .toast, .human-pause {
+  border: 1px solid var(--border);
+}
 
-.rail { background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; padding: 8px 6px; }
-.rail-btn { background: none; border: none; border-radius: 8px; font-size: 18px; padding: 8px; cursor: pointer; opacity: .55; }
+.layout { display: grid; grid-template-columns: 52px 230px 1fr 300px; height: 100vh; height: 100dvh; }
+/* Sidebar + chat Inspector render only in the Chat view; every other view
+ * brings its own panels, so the grid collapses to rail + content there. */
+.layout.full { grid-template-columns: 52px 1fr; }
+
+.rail { background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; }
+.rail-btn { position: relative; background: none; border: none; border-radius: 8px; font-size: 18px; padding: 10px; opacity: .55; }
 .rail-btn.active, .rail-btn:hover { opacity: 1; background: var(--bg3); }
+/* current-view marker: a 3px accent bar on the icon's left edge */
+.rail-btn.active::before { content: ""; position: absolute; left: -6px; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--accent); }
 
 .sidebar { background: var(--bg2); border-right: 1px solid var(--border); padding: 10px; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
 .conv-list { overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
-.conv { padding: 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+.conv { padding: 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; border-left: 2px solid transparent; }
 .conv:hover { background: var(--bg3); }
-.conv.active { background: var(--bg3); border-color: var(--border); }
+.conv.active { background: var(--bg3); border-color: var(--border); border-left-color: var(--accent); }
 .conv-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .conv-date { color: var(--muted); font-size: 11px; margin-top: 2px; }
 
 .chat { display: flex; flex-direction: column; min-width: 0; }
+/* reading column: on wide screens the transcript stays at a comfortable line
+ * length instead of stretching edge to edge */
 .chat-scroll { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+.chat-scroll > * { width: 100%; max-width: 880px; margin-inline: auto; }
 .empty { margin: auto; text-align: center; display: flex; flex-direction: column; gap: 6px; }
 
 .msg-role { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
-.msg-user .msg-role { color: var(--accent); }
+/* user turns get the accent bar: scan the transcript by speaker, not by reading */
+.msg-user { border-left: 2px solid var(--accent); padding-left: 12px; }
+.msg-assistant { padding-left: 14px; }
 .msg-text { white-space: pre-wrap; line-height: 1.55; }
 .msg-meta { color: var(--muted); font-size: 11px; margin-top: 6px; }
 .cursor { animation: blink 1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
-.codeblock { border: 1px solid var(--border); border-radius: 8px; margin: 8px 0; overflow: hidden; }
+.codeblock { border-radius: 8px; margin: 8px 0; overflow: hidden; }
 .codeblock-head { display: flex; justify-content: space-between; align-items: center; background: var(--bg3); padding: 4px 10px; border-bottom: 1px solid var(--border); }
 .codeblock-lang { color: var(--muted); font-size: 11px; }
-.codeblock-pre, .codeblock-shiki pre { margin: 0; padding: 12px; overflow-x: auto; background: var(--bg2) !important; font-size: 12.5px; line-height: 1.5; }
-.codeblock-out { margin: 0; padding: 10px 12px; background: #0a0d12; border-top: 1px solid var(--border); color: #9ece6a; white-space: pre-wrap; font-size: 12px; }
+.codeblock-pre, .codeblock-shiki pre { margin: 0; padding: 12px; overflow-x: auto; background: var(--code-bg) !important; color: var(--code-fg); font-size: 12.5px; line-height: 1.5; }
+.codeblock-out { margin: 0; padding: 10px 12px; background: var(--well); border-top: 1px solid var(--border); color: var(--code-out-fg); white-space: pre-wrap; font-size: 12px; }
 
 .composer { display: flex; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--border); background: var(--bg2); }
+.composer > * { width: 100%; max-width: 880px; margin-inline: auto; }
 .composer textarea { flex: 1; resize: none; }
 
 .inspector { background: var(--bg2); border-left: 1px solid var(--border); padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .inspector h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 10px 0 2px; }
-.usage-box { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 3px; }
+/* Accordion section: state visible in the summary (val), content one click away.
+ * Replaces the always-expanded h3 stack that made the panel unusable. */
+.insp-sec { border-radius: 8px; background: var(--bg2); overflow: hidden; flex-shrink: 0; }
+.insp-sec summary { list-style: none; cursor: pointer; user-select: none; padding: 8px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.insp-sec summary::-webkit-details-marker { display: none; }
+.insp-sec summary::before { content: "▸"; font-size: 10px; transition: transform .15s ease; }
+.insp-sec[open] summary::before { transform: rotate(90deg); }
+.insp-sec[open] summary { border-bottom: 1px solid var(--border); }
+.insp-sec-val { color: var(--fg); text-transform: none; letter-spacing: 0; margin-left: auto; font-size: 11px; max-width: 62%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.insp-sec-body { display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+.usage-box { background: var(--bg3); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 3px; }
+.harness-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.harness-bar input { flex: 1; min-width: 0; }
+.harness-bar .muted { flex-basis: 100%; font-size: 11px; }
 
-.mode-toggle { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-.mode { flex: 1; background: var(--bg3); color: var(--muted); border: none; padding: 6px; cursor: pointer; font: inherit; }
-.mode.active { background: var(--accent); color: #0a0d12; font-weight: 600; }
+.mode-toggle { display: flex; border-radius: 6px; overflow: hidden; }
+.mode { flex: 1; background: var(--bg3); color: var(--muted); border: none; padding: 6px; }
+.mode.active { background: var(--accent); color: var(--fg-on-accent); font-weight: 600; }
 
 textarea, input, select { background: var(--bg3); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; font: inherit; width: 100%; }
-.btn { background: var(--accent); color: #0a0d12; border: none; border-radius: 6px; padding: 8px 16px; font: inherit; font-weight: 600; cursor: pointer; }
-.btn-stop { background: #f85149; }
+.btn { background: var(--accent); color: var(--fg-on-accent); border: none; border-radius: 6px; padding: 8px 16px; font-weight: 600; }
+.btn:hover { filter: brightness(1.12); }
+.btn:disabled { opacity: .5; cursor: default; filter: none; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-stop { background: var(--danger); }
 .btn-block { width: 100%; }
-.btn-ghost { background: none; border: none; color: var(--muted); cursor: pointer; font: inherit; font-size: 11px; padding: 2px 8px; }
+.btn-ghost { background: none; border: none; color: var(--muted); font-size: 11px; padding: 2px 8px; }
 .btn-ghost:hover { color: var(--fg); }
 .muted { color: var(--muted); }
 /* ---- attachments ---- */
@@ -60,13 +173,32 @@ textarea, input, select { background: var(--bg3); color: var(--fg); border: 1px 
 .composer-row { display: flex; gap: 8px; width: 100%; align-items: flex-end; }
 .btn-attach { font-size: 16px; padding: 8px 4px; }
 .att-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
-.att-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 12px; }
+.att-chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; padding: 3px 8px; font-size: 12px; }
 .att-thumb { width: 28px; height: 28px; object-fit: cover; border-radius: 4px; }
 .att-preview { max-width: 240px; max-height: 180px; border-radius: 8px; border: 1px solid var(--border); }
 .att-name { max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tool-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.tool-chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; padding: 3px 8px; font-size: 12px; color: var(--accent); }
+.tool-result { margin: 2px 0 6px; }
+.tool-result-body { margin: 0; padding: 8px; background: var(--bg3); border-radius: 6px; font-size: 11px; color: var(--muted); max-height: 180px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+.thinking { margin: 2px 0 6px; font-size: 12px; }
+.thinking summary { cursor: pointer; color: var(--muted); user-select: none; }
+.thinking summary:hover { color: var(--accent); }
+.thinking-body { margin-top: 4px; padding: 8px; background: var(--bg3); border: 1px dashed var(--border); border-radius: 6px; font-size: 11.5px; color: var(--muted); white-space: pre-wrap; word-break: break-word; max-height: 260px; overflow: auto; }
 
 /* ---- skills / memory panels ---- */
 .panel { display: grid; grid-template-columns: 280px 1fr; min-width: 0; overflow: hidden; }
+
+/* ---- library (IA-1): tabbed shell around the four editors ---- */
+.library { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.library-tabs { display: flex; gap: 6px; padding: 10px 12px 0; border-bottom: 1px solid var(--border); }
+/* N4: breadcrumb — where you are, always; pairs with the ← topbar button. */
+.crumb { color: var(--muted); font-size: 12px; padding: 10px 12px 0; }
+.crumb b { color: var(--fg); font-weight: 600; }
+.lib-tab { background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); font: inherit; cursor: pointer; padding: 6px 12px; }
+.lib-tab.active { color: var(--fg); border-bottom-color: var(--accent); }
+.library-body { flex: 1; min-height: 0; display: flex; }
+.library-body > * { flex: 1; min-width: 0; }
 .panel-list { border-right: 1px solid var(--border); padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 .panel-editor { padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; max-width: 860px; }
 .panel-editor h3, .list-head { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 8px 0 2px; }
@@ -77,29 +209,38 @@ textarea, input, select { background: var(--bg3); color: var(--fg); border: 1px 
 .item-main { min-width: 0; flex: 1; }
 .item-sub { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row-btns { display: flex; gap: 8px; }
+/* R-B: hint row under the Tools field; chips insert their wire name. */
+.tool-hints { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.tool-hints .chip { cursor: pointer; }
 
 /* ---- context lists (inspector) ---- */
 .ctx-list { display: flex; flex-direction: column; gap: 4px; }
 .ctx-item { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
 .ctx-item:hover { background: var(--bg3); }
 .ctx-item input { width: auto; margin: 0; }
+/* R-D: a declared tool the server cannot run; keep the row subtle, the hint
+ * line next to it explains the fix. */
+.ctx-item.dead { color: var(--warning); }
 
 /* ---- composer buttons ---- */
 .composer-btns { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
 
 /* ---- mobile toggles ---- */
-.topbar-btn { display: none; position: fixed; top: 8px; z-index: 50; background: var(--bg3); border: 1px solid var(--border); color: var(--fg); border-radius: 8px; padding: 6px 12px; font: inherit; cursor: pointer; }
-#btn-sidebar { left: 8px; }
+.topbar-btn { display: none; position: fixed; top: 8px; z-index: 50; background: var(--bg3); border: 1px solid var(--border); color: var(--fg); border-radius: 8px; padding: 6px 12px; }
+#btn-back { left: 8px; }
+#btn-sidebar { left: 52px; }
 #btn-inspector { right: 8px; }
 .backdrop { display: none; }
 
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; }
   .topbar-btn { display: block; }
-  .backdrop { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 35; }
+  .backdrop { display: block; position: fixed; inset: 0; background: var(--overlay); z-index: 35; }
 
-  .rail { position: fixed; bottom: 0; left: 0; right: 0; flex-direction: row; justify-content: space-around; border-right: none; border-top: 1px solid var(--border); z-index: 30; padding: 4px; }
-  .chat, .panel { padding-bottom: 56px; }
+  .rail { position: fixed; bottom: 0; left: 0; right: 0; flex-direction: row; justify-content: space-around; border-right: none; border-top: 1px solid var(--border); z-index: 30; padding: 4px; padding-bottom: calc(4px + env(safe-area-inset-bottom)); }
+  /* N1: bottom clearance for the fixed rail (~56px + safe-area) on every
+   * scrollable view, else the last content (e.g. Settings fields) is covered. */
+  .chat, .panel, .settings, .node-view { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
   .chat-scroll { padding-top: 48px; }
 
   .sidebar { position: fixed; top: 0; left: 0; bottom: 56px; width: 82vw; max-width: 320px; z-index: 40; transform: translateX(-105%); transition: transform .18s ease; }
@@ -110,46 +251,259 @@ textarea, input, select { background: var(--bg3); color: var(--fg); border: 1px 
 
   .panel { grid-template-columns: 1fr; }
   .panel-list { border-right: none; border-bottom: 1px solid var(--border); max-height: 40vh; }
+
+  /* U4: cap the picker so it can't overflow the top when the mobile keyboard
+   * shrinks the viewport; contain the scroll so it never chains to the page. */
+  .picker { max-height: 40dvh; overscroll-behavior: contain; }
+
+  /* U5: fixed-height canvas; vertical swipes scroll the page (touch-action
+   * pan-y on the pane), horizontal drags pan the graph, zoom via Controls. */
+  .node-canvas-body { height: 46dvh; min-height: 0; }
+  .react-flow__pane { touch-action: pan-y; }
+}
+
+/* U1: touch has no hover — destructive/list actions must be visible there.
+ * U2: the toast must clear the mobile rail (~56px) instead of covering it. */
+@media (hover: none) {
+  .msg-del, .conv-ops { opacity: 1; }
+}
+@media (max-width: 900px) {
+  .toast { bottom: 72px; }
 }
 
 /* ---- projects / settings ---- */
 .settings { padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; max-width: 640px; }
+/* flex children would collapse to min-content instead of overflowing (theme
+ * buttons rendered 12px tall): the scroller must scroll, not shrink. */
+.settings > * { flex-shrink: 0; }
 .settings h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 10px 0 2px; }
-.badge { background: var(--accent); color: #0a0d12; border-radius: 4px; font-size: 10px; padding: 1px 5px; margin-left: 4px; font-weight: 600; }
-.project-banner { display: flex; align-items: center; justify-content: space-between; gap: 6px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+.badge { background: var(--accent); color: var(--fg-on-accent); border-radius: 4px; font-size: 10px; padding: 1px 5px; margin-left: 4px; font-weight: 600; }
+/* color wheel entry point (UI-3): compact swatch, not a full-width input */
+.accent-pick { width: 52px; height: 34px; padding: 2px; cursor: pointer; flex: none; }
+.project-banner { display: flex; align-items: center; justify-content: space-between; gap: 6px; background: var(--bg3); border-radius: 6px; padding: 6px 8px; font-size: 12px; }
 
-.msg-del.armed { opacity: 1; color: #f85149; font-weight: 600; }
+.msg-del.armed { opacity: 1; color: var(--danger); font-weight: 600; }
 
 @media (max-width: 900px) { .msg-del { opacity: .5; } }
 
-/* ---- nodes ---- */
-.step-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; background: var(--bg2); }
-.step-head { display: flex; justify-content: space-between; align-items: center; }
-.run-log { background: #0a0d12; border: 1px solid var(--border); border-radius: 8px; padding: 12px; white-space: pre-wrap; font-size: 12px; max-height: 50vh; overflow-y: auto; }
+/* ---- messages ---- */
 .msg-head { display: flex; align-items: center; gap: 8px; }
-.msg-del { opacity: 0; transition: opacity .15s; }
+/* hit area ≥22px (UI-6): UA default button padding leaves it at ~20px */
+.msg-del { opacity: 0; transition: opacity .15s; padding: 4px 6px; }
 .msg:hover .msg-del { opacity: 1; }
 
 /* ---- node run log v2 ---- */
-.run-log2 { display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; padding: 4px 0; }
+/* No max-height here: the node inspector is the single scroll container (U3),
+ * nesting a second scroller made the log unusable. */
+.run-log2 { display: flex; flex-direction: column; gap: 8px; padding: 4px 0; }
 .rl-start { color: var(--accent); font-size: 12px; }
 .rl-usage { color: var(--muted); font-size: 11px; padding-left: 12px; }
-.rl-error { color: #f85149; background: rgba(248, 81, 73, .08); border: 1px solid rgba(248, 81, 73, .4); border-radius: 8px; padding: 10px 12px; white-space: pre-wrap; }
+.rl-error { color: var(--danger); background: var(--danger-bg); border: 1px solid var(--danger-border); border-radius: 8px; padding: 10px 12px; white-space: pre-wrap; }
 .rl-done { color: var(--muted); font-size: 11px; text-align: center; }
-.rl-card { border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); overflow: hidden; }
+.rl-card { border-radius: 8px; background: var(--bg2); overflow: hidden; }
 .rl-card-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: var(--bg3); border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted); }
 .rl-card-body { margin: 0; padding: 12px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; overflow-x: auto; }
 .rl-final { border-color: var(--accent); }
 .rl-final .rl-card-head { color: var(--accent); font-weight: 600; }
 
-/* ---- nodes split layout ---- */
-.node-split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 0 16px; max-width: none; overflow: hidden; padding: 0; }
-.node-form { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 16px; }
-.node-run { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 16px; border-left: 1px solid var(--border); }
-.node-run .run-log2 { max-height: none; overflow-y: visible; }
+/* ---- graph editor: list | canvas | inspector ----
+ * Owner layout: chronology (graphs) left, canvas center, closable config
+ * inspector right. The run inspector is NOT a side column: it is a bottom
+ * sheet in front of the canvas, opened from the always-visible strip; the
+ * strip + sheet are scoped inside .node-canvas-wrap so they only overlay the
+ * graph. .ni = config inspector open. */
+.node-view { display: grid; grid-template-columns: 200px minmax(0, 1fr); min-width: 0; overflow: hidden; }
+.node-view.ni { grid-template-columns: 200px minmax(0, 1fr) 300px; }
+.nv-toggle { opacity: .55; }
+.nv-toggle.on { opacity: 1; color: var(--accent); }
+.node-canvas-wrap { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg); }
+/* wrap instead of squeezing buttons into vertical stacks on a narrow canvas */
+.node-canvas-head { display: flex; flex-wrap: wrap; row-gap: 6px; gap: 8px; align-items: center; padding: 10px 12px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+.node-canvas-head button { white-space: nowrap; }
+.graph-name { max-width: 220px; background: transparent; border-color: transparent; }
+.graph-name:focus { border-color: var(--border); background: var(--bg3); }
+.dirty-dot { color: var(--dirty); font-size: 14px; }
+.spacer { flex: 1; }
+.node-canvas-body { flex: 1; min-height: 0; }
+.node-inspector { border-left: 1px solid var(--border); background: var(--bg2); padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+
+/* run inspector: bottom sheet over the canvas (z within the wrap: ReactFlow
+ * is unpositioned stacking, strip/sheet sit above it; sheet sits under the
+ * strip so the strip stays clickable with the sheet open) */
+.run-strip { position: absolute; left: 0; right: 0; bottom: 0; height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 12px; background: var(--bg2); border-top: 1px solid var(--border); cursor: pointer; user-select: none; z-index: 13; }
+.rs-grip { color: var(--muted); }
+.rs-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.rs-status { font-size: 11px; color: var(--accent); }
+.rs-status.rs-pending { color: var(--warning); }
+.rs-count { font-size: 11px; }
+.run-sheet { position: absolute; left: 0; right: 0; bottom: 40px; height: var(--rs-h, 55dvh); min-height: 160px; display: flex; flex-direction: column; background: var(--bg2); border-top: 1px solid var(--border); z-index: 12; }
+/* drag handle on the sheet's top edge: drag up = grow, down = shrink */
+.rs-resize { flex: 0 0 auto; height: 8px; cursor: ns-resize; }
+.rs-resize:hover { background: var(--accent-glow); }
+/* Two-pane inspector body: rail (runs/bench) + selected run timeline. */
+.rs-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 230px 1fr; }
+.rs-rail { border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; }
+.rs-tabs { display: flex; gap: 4px; margin-bottom: 6px; }
+.rs-tabs button { flex: 1; background: none; border: none; color: var(--muted); font: inherit; font-size: 11px; padding: 4px 8px; cursor: pointer; border-radius: 6px; }
+.rs-tabs button.on { background: var(--bg3); color: var(--fg); }
+.rs-run { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+.rs-run:hover { background: var(--bg3); }
+.rs-run.on { background: var(--bg3); outline: 1px solid var(--border); }
+.rs-run .item-main { min-width: 0; flex: 1; }
+.rs-run .item-main > div:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.rs-dot.ok { background: var(--ok, #4caf7d); }
+.rs-dot.err { background: var(--danger); }
+.rs-dot.pause { background: var(--warning); }
+.rs-dot.live { background: var(--accent); animation: rs-pulse 1s ease-in-out infinite; }
+@keyframes rs-pulse { 50% { opacity: 0.35; } }
+.rs-rail-foot { margin-top: auto; padding-top: 6px; display: flex; justify-content: flex-end; }
+.rs-detail { min-width: 0; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.rs-launch { display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+.rs-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 12px; }
+.rs-timeline { display: flex; flex-direction: column; gap: 6px; }
+.rs-step { border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); overflow: hidden; }
+.rs-step-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px 10px; font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
+.rs-step.open .rs-step-head, .rs-step.err .rs-step-head, .rs-step.final .rs-step-head { color: var(--fg); }
+.rs-step.final { border-color: var(--accent); }
+.rs-step.final .rs-mark, .rs-step.final .rs-step-head { color: var(--accent); }
+.rs-step.err { border-color: var(--danger-border); background: var(--danger-bg); }
+.rs-step.err .rs-step-head { color: var(--danger); cursor: default; }
+.rs-step.human { border-color: var(--warning); }
+.rs-step.human .rs-step-head { color: var(--warning); cursor: default; }
+.rs-step.open .rl-card-body { border-top: 1px solid var(--border); }
+.rs-usage { font-size: 10px; color: var(--muted); background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+.run-sheet-body { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+
+/* react-flow dark theme + agent cards */
+.react-flow { background: var(--bg); }
+.react-flow__background { opacity: .35; }
+.react-flow__controls { box-shadow: none; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.react-flow__controls-button { background: var(--bg2); border-bottom: 1px solid var(--border); }
+.react-flow__controls-button:hover { background: var(--bg3); }
+.react-flow__controls-button svg { fill: var(--fg); }
+.react-flow__edge-path { stroke: var(--muted); stroke-width: 1.5px; }
+.react-flow__edge.selected .react-flow__edge-path { stroke: var(--accent); }
+.react-flow__handle { background: var(--accent); border: none; width: 7px; height: 7px; }
+.gnda { background: var(--bg2); border-radius: 10px; padding: 10px 12px; min-width: 150px; font-size: 12px; }
+.react-flow__node.selected .gnda { border-color: var(--accent); }
+.gnda.running { border-color: var(--accent); box-shadow: 0 0 16px var(--accent-glow); }
+.gnda.done { border-color: var(--success-border); }
+.gnda-head { font-weight: 600; margin-bottom: 4px; cursor: pointer; user-select: none; }
+/* Collapsed card = head only: density for large graphs, meta/chips hidden. */
+.gnda.collapsed { min-width: 110px; }
+.gnda.collapsed .gnda-head { margin-bottom: 0; }
+.gnda-caret { color: var(--muted); margin-right: 2px; }
+.gnda-meta { color: var(--muted); font-size: 11px; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gnda-chips { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+.gnda-chip { border-radius: 4px; font-size: 10px; padding: 1px 5px; color: var(--muted); }
+
+/* template picker under "+ new graph" */
+.newwrap { position: relative; }
+.newwrap .picker { bottom: auto; top: calc(100% + 4px); left: 0; right: 0; max-width: none; }
+
+/* Model picker (N6): opens DOWNWARD inside the inspector, same override
+ * pattern as .newwrap .picker (the chips-bar .picker opens upward). */
+.model-pick { position: relative; }
+.model-pick .picker { bottom: auto; top: calc(100% + 4px); left: 0; right: 0; min-width: 0; max-width: none; }
+
+/* ---- context chips bar (chat) ---- */
+.chips-bar { position: relative; display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 20px 0; width: 100%; max-width: 920px; margin-inline: auto; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 10px; font-size: 12px; }
+.chip-x { background: none; border: none; color: var(--muted); padding: 4px; }
+.chip-x:hover { color: var(--danger); }
+.chip-plus { cursor: pointer; background: var(--bg2); color: var(--muted); border-style: dashed; }
+.chip-plus:hover { color: var(--fg); border-color: var(--accent); }
+.kind-soul { border-color: var(--kind-soul); }
+.kind-prompt { border-color: var(--kind-prompt); }
+.kind-fact { border-color: var(--kind-fact); }
+.kind-skill { border-color: var(--kind-skill); }
+
+/* list-style picker (model-selector pattern): opens upward from the chips bar */
+.picker { position: absolute; bottom: calc(100% + 6px); left: 20px; min-width: 280px; max-width: 380px; max-height: 52vh; overflow-y: auto; background: var(--bg2); border-radius: 10px; padding: 8px; z-index: 20; box-shadow: var(--shadow-md); display: flex; flex-direction: column; gap: 2px; }
+.picker-head { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 8px 4px 2px; }
+.pick { padding: 6px 8px; border-radius: 6px; font-size: 12px; }
+.pick:hover { background: var(--bg3); }
+.pick.on { color: var(--accent); }
+.pick.on::before { content: "✓ "; }
+.picker-empty { padding: 4px 8px; }
+
+/* ---- palette (Ctrl+K) ---- */
+.palette-overlay { position: fixed; inset: 0; background: var(--overlay-strong); z-index: 100; display: flex; align-items: flex-start; justify-content: center; padding-top: 12vh; }
+.palette { width: min(560px, 92vw); background: var(--bg2); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-lg); }
+.palette input { border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 14px 16px; }
+.palette-list { max-height: 46vh; overflow-y: auto; padding: 6px; }
+.pal-item { padding: 8px 10px; border-radius: 6px; cursor: pointer; display: flex; gap: 8px; }
+.pal-item.active { background: var(--bg3); color: var(--accent); }
+.pal-icon { width: 18px; display: inline-block; }
+.pal-empty { padding: 12px; }
+
+/* ---- sidebar conversation ops ---- */
+.conv { position: relative; }
+.conv-ops { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
+.conv:hover .conv-ops { opacity: 1; }
+.conv-op { background: var(--bg2); border: none; border-radius: 4px; color: var(--muted); padding: 4px 8px; font-size: 12px; }
+.conv-op:hover { color: var(--fg); background: var(--bg3); }
+.conv-op.conv-del:hover { color: var(--danger); }
+
+.inspector-hint { font-size: 11px; margin-top: -4px; }
 
 @media (max-width: 1100px) {
-  .node-split { grid-template-columns: 1fr; overflow-y: auto; }
-  .node-run { border-left: none; border-top: 1px solid var(--border); }
+  .node-view.ni { grid-template-columns: 200px minmax(0, 1fr) 260px; }
 }
 
+@media (max-width: 900px) {
+  /* stacked: list, canvas (fixed height so page scroll works), panels below;
+   * the run strip/sheet overlay the canvas body (position absolute within
+   * .node-canvas-wrap), so they need no stacking-specific rules */
+  .node-view { grid-template-columns: 1fr !important; overflow-y: auto; }
+  .layout.full { grid-template-columns: 1fr; }
+  .node-canvas-body { height: 46dvh; min-height: 0; }
+  .node-inspector { border-left: none; border-top: 1px solid var(--border); }
+  .run-sheet { height: 45dvh; }
+}
+
+
+/* ---- login gate ---- */
+.boot { display: flex; align-items: center; justify-content: center; height: 100vh; height: 100dvh; font-size: 13px; }
+.login { display: flex; flex-direction: column; gap: 10px; width: 300px; margin: max(20vh, 120px) auto 0; padding: 24px; border-radius: 10px; background: var(--bg); box-shadow: var(--shadow-sm); }
+.login-title { text-align: center; font-weight: 700; letter-spacing: .12em; margin-bottom: 6px; }
+.login-msg { text-align: center; }
+
+.chat-warn { padding: 6px 14px; border-bottom: 1px solid var(--border); color: var(--warning); font-size: 12px; }
+
+.thinking-pick { padding: 4px 6px; font-size: 12px; cursor: pointer; }
+
+/* ---- P3: toast notifications + human-in-the-loop ---- */
+.toast {
+  position: fixed; bottom: 18px; right: 18px; z-index: 1000;
+  max-width: 340px; padding: 10px 14px;
+  background: var(--bg); border-radius: 10px;
+  font-size: 12.5px; cursor: pointer; box-shadow: var(--shadow-sm);
+}
+.human-pause { border-radius: 10px; padding: 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.hp-head { font-size: 12.5px; font-weight: 600; }
+.rl-human { font-size: 12px; color: var(--warning); padding: 4px 2px; }
+.gen-modal {
+  position: fixed; top: 8vh; left: 50%; transform: translateX(-50%);
+  width: min(640px, 92vw); max-height: 84vh; overflow-y: auto; z-index: 910;
+  background: var(--bg); border-radius: 12px;
+  padding: 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.gen-json { font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+.rl-t { color: var(--muted); font-size: 11px; margin-left: 6px; }
+.rc-panes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rc-pane { max-height: 220px; overflow: auto; background: var(--well-soft); padding: 8px; border-radius: 8px; font-size: 11.5px; white-space: pre-wrap; }
+.rc-diff { max-height: 260px; overflow: auto; background: var(--well-soft); padding: 8px; border-radius: 8px; font-size: 11.5px; margin: 4px 0 0; }
+.rc-add { color: var(--add); }
+.rc-del { color: var(--del); }
+.bench-out summary { cursor: pointer; font-size: 12px; padding: 2px 0; }
+
+/* P4-B users panel: role badges reuse existing palette tokens only. */
+.badge { border-radius: 999px; padding: 1px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border: 1px solid var(--border); flex-shrink: 0; }
+.badge-owner { color: var(--accent); border-color: var(--accent); }
+.badge-admin { color: var(--warning); border-color: var(--warning); }
+.revoked-badge { color: var(--danger); border-color: var(--danger); }
+.panel-editor h3 .badge { margin-left: 8px; vertical-align: middle; }
+.user-field-label { font-size: 11px; margin-top: 4px; }
+.user-note { font-size: 11px; }
