@@ -1,5 +1,6 @@
 node_modules/
 .env
+.playwright-cli/
 data/*
 !data/.gitkeep
 web/dist/
